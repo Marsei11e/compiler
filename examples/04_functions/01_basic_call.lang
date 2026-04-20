@@ -1,0 +1,14 @@
+-- 01_basic_call.lang
+-- Объявление и вызов функции с параметрами и возвратом.
+-- expect_stdout:
+-- 12
+-- expect_exit: 0
+
+fn add(a: int32, b: int32) -> int32 @pure {
+    return a + b;
+}
+
+fn main() -> int32 {
+    println(add(5, 7));
+    return 0;
+}

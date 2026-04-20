@@ -1,0 +1,18 @@
+-- 02_int_arith.lang
+-- Целочисленные литералы и арифметика int32.
+-- expect_stdout:
+-- 7
+-- 6
+-- 4
+-- 2
+-- 1
+-- expect_exit: 0
+
+fn main() -> int32 {
+    println(3 + 4);    -- 7
+    println(2 * 3);    -- 6
+    println(10 - 6);   -- 4
+    println(7 / 3);    -- 2 (целочисленное усечение)
+    println(7 % 3);    -- 1
+    return 0;
+}

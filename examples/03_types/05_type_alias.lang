@@ -1,0 +1,20 @@
+-- 05_type_alias.lang
+-- Синонимы типов: Meters = int32. Полная взаимозаменяемость без приведения.
+-- expect_stdout:
+-- 1500
+-- expect_exit: 0
+
+type Meters = int32;
+type Kilometers = int32;
+
+fn add_distances(a: Meters, b: Kilometers) -> Meters @pure {
+    -- Meters и Kilometers оба = int32, поэтому сумма легальна без cast.
+    return a + b * 1000;
+}
+
+fn main() -> int32 {
+    var m: Meters = 500;
+    var km: Kilometers = 1;
+    println(add_distances(m, km));   -- 1500
+    return 0;
+}

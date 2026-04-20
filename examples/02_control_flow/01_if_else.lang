@@ -1,0 +1,28 @@
+-- 01_if_else.lang
+-- if-инструкция с else, без else, и else-if цепочка.
+-- expect_stdout:
+-- positive
+-- non-negative
+-- big
+-- expect_exit: 0
+
+fn classify(x: int32) -> hollow @io {
+    if x > 0 {
+        println("positive");
+    }
+    if x >= 0 {
+        println("non-negative");
+    }
+    if x < 0 {
+        println("negative");
+    } else if x < 100 {
+        println("small");
+    } else {
+        println("big");
+    }
+}
+
+fn main() -> int32 {
+    classify(500);
+    return 0;
+}

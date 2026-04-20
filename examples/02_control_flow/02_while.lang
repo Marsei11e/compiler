@@ -1,0 +1,18 @@
+-- 02_while.lang
+-- while с предусловием.
+-- expect_stdout:
+-- 0
+-- 1
+-- 2
+-- 3
+-- 4
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var i: int32 = 0;
+    while i < 5 {
+        println(i);
+        i = i + 1;
+    }
+    return 0;
+}

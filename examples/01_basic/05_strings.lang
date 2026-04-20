@@ -1,0 +1,17 @@
+-- 05_strings.lang
+-- Конкатенация строк, len, сравнение.
+-- expect_stdout:
+-- Hello, world!
+-- 13
+-- true
+-- false
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var s: string = "Hello, " + "world!";
+    println(s);
+    println(len(s));         -- 13 (включая запятую и пробел, без !\0)
+    println("abc" == "abc");
+    println("abc" != "abc");
+    return 0;
+}

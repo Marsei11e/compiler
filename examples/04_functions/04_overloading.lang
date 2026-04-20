@@ -1,0 +1,30 @@
+-- 04_overloading.lang
+-- Перегрузка по количеству и по типам параметров.
+-- expect_stdout:
+-- 25
+-- 12
+-- 7.5
+-- expect_exit: 0
+
+-- Перегрузка по количеству параметров
+fn area(side: int32) -> int32 @pure {
+    return side * side;
+}
+
+fn area(w: int32, h: int32) -> int32 @pure {
+    return w * h;
+}
+
+-- Перегрузка по типу параметра
+fn area(side: float64) -> float64 @pure {
+    return side * side;
+}
+
+fn main() -> int32 {
+    println(area(5));            -- area(int32) — квадрат: 25
+    println(area(3, 4));         -- area(int32, int32) — прямоугольник: 12
+    -- 2.7386... -- неудобно проверять; используем точное число
+    var s: float64 = 2.5;
+    println(area(s) + 1.25);     -- area(float64) → 6.25, +1.25 == 7.5
+    return 0;
+}

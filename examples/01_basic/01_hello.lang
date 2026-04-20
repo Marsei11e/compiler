@@ -1,0 +1,9 @@
+-- 01_hello.lang
+-- Минимальная программа: просто `main` и println.
+-- expect_stdout: Hello, world!
+-- expect_exit:   0
+
+fn main() -> int32 {
+    println("Hello, world!");
+    return 0;
+}

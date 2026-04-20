@@ -1,0 +1,29 @@
+-- 01_int_types.lang
+-- Различные целочисленные типы и литеральные суффиксы.
+-- expect_stdout:
+-- 127
+-- 32767
+-- 2147483647
+-- 100
+-- 200
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var a: int8  = 127;        -- максимум int8
+    var b: int16 = 32767;      -- максимум int16
+    var c: int32 = 2147483647; -- максимум int32
+
+    -- Подстройка безсуффиксного литерала под аннотацию
+    var d: int16 = 100;        -- 100 укладывается в int16
+
+    -- Литерал с суффиксом
+    var e: uint8 = 200;        -- 200 укладывается в uint8
+
+    -- print через cast в int64 (или прямая поддержка типа в runtime)
+    println(cast<int32>(a));
+    println(cast<int32>(b));
+    println(c);
+    println(cast<int32>(d));
+    println(cast<int32>(e));
+    return 0;
+}

@@ -1,0 +1,25 @@
+-- 06_shadowing.lang
+-- Перекрытие имён (shadowing) во вложенных блоках.
+-- expect_stdout:
+-- 1
+-- 2
+-- 3
+-- 2
+-- 1
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var x: int32 = 1;
+    println(x);          -- 1
+    {
+        var x: int32 = 2;        -- скрывает внешний x
+        println(x);              -- 2
+        {
+            var x: int32 = 3;    -- скрывает второй x
+            println(x);          -- 3
+        }
+        println(x);              -- 2 — третий x уничтожен
+    }
+    println(x);                  -- 1 — второй x уничтожен
+    return 0;
+}

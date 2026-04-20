@@ -1,0 +1,19 @@
+-- 02_call_by_value.lang
+-- Аргументы передаются по значению — изменения внутри функции не видны
+-- снаружи.
+-- expect_stdout:
+-- 10
+-- 5
+-- expect_exit: 0
+
+fn double_in_place(x: int32) -> int32 {
+    x = x * 2;       -- меняет локальную копию
+    return x;
+}
+
+fn main() -> int32 {
+    var a: int32 = 5;
+    println(double_in_place(a));    -- 10
+    println(a);                     -- 5 — не изменилась
+    return 0;
+}

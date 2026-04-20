@@ -1,0 +1,20 @@
+-- 06_comparisons.lang
+-- Все операторы сравнения.
+-- expect_stdout:
+-- true
+-- false
+-- true
+-- true
+-- false
+-- true
+-- expect_exit: 0
+
+fn main() -> int32 {
+    println(5 < 10);    -- true
+    println(5 > 10);    -- false
+    println(5 <= 5);    -- true
+    println(5 >= 5);    -- true
+    println(5 == 6);    -- false
+    println(5 != 6);    -- true
+    return 0;
+}

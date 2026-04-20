@@ -1,0 +1,15 @@
+-- 04_for_array.lang
+-- for по массиву.
+-- expect_stdout:
+-- 150
+-- expect_exit: 0
+
+fn main() -> int32 {
+    const nums: array[int32, 5] = [10, 20, 30, 40, 50];
+    var total: int32 = 0;
+    for x in nums {
+        total = total + x;
+    }
+    println(total);
+    return 0;
+}

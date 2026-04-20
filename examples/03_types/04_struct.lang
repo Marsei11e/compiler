@@ -1,0 +1,26 @@
+-- 04_struct.lang
+-- Объявление структуры, литерал, доступ к полям, копирование.
+-- expect_stdout:
+-- 3
+-- 4
+-- 100
+-- 3
+-- expect_exit: 0
+
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+fn main() -> int32 {
+    var p: Point = Point{ x: 3, y: 4 };
+    println(p.x);    -- 3
+    println(p.y);    -- 4
+
+    -- Value semantics для структур.
+    var q: Point = p;
+    q.x = 100;
+    println(q.x);    -- 100
+    println(p.x);    -- 3 — оригинал не изменился
+    return 0;
+}

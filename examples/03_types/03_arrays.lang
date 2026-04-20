@@ -1,0 +1,24 @@
+-- 03_arrays.lang
+-- Массивы фиксированного размера, индексирование, копирование (value semantics).
+-- expect_stdout:
+-- 10
+-- 30
+-- 50
+-- 10
+-- 99
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var arr: array[int32, 5] = [10, 20, 30, 40, 50];
+
+    println(arr[0]);     -- 10
+    println(arr[2]);     -- 30
+    println(arr[4]);     -- 50
+
+    -- Value semantics: копия массива, изменения arr2 не видны arr.
+    var arr2: array[int32, 5] = arr;
+    arr2[0] = 99;
+    println(arr[0]);     -- 10 — оригинал не изменился
+    println(arr2[0]);    -- 99 — копия изменилась
+    return 0;
+}

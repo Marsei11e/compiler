@@ -1,0 +1,16 @@
+-- 04_bool_logic.lang
+-- Булевы литералы и логические операции.
+-- expect_stdout:
+-- true
+-- false
+-- false
+-- true
+-- expect_exit: 0
+
+fn main() -> int32 {
+    println(true && true);     -- true
+    println(true && false);    -- false
+    println(false || false);   -- false
+    println(!false);           -- true
+    return 0;
+}

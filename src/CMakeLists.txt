@@ -1,0 +1,117 @@
+set(DIAG_SOURCES
+    diag/source.cpp
+    diag/diagnostic.cpp
+)
+
+set(LEXER_SOURCES
+    lexer/lexer.cpp
+)
+
+set(PARSER_SOURCES
+    parser/ast_dump.cpp
+    parser/parser.cpp
+)
+
+set(SEMA_SOURCES
+    sema/sema.cpp
+    sema/expr_check.cpp
+    sema/overload.cpp
+)
+
+add_executable(myc main.cpp ${DIAG_SOURCES} ${LEXER_SOURCES} ${PARSER_SOURCES} ${SEMA_SOURCES})
+target_link_libraries(myc PRIVATE mycrt)
+target_include_directories(myc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(myc PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+# Unit test targets
+add_executable(mycc_test
+    ../tests/unit/test_diag.cpp
+    ${DIAG_SOURCES}
+)
+target_include_directories(mycc_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test PRIVATE -Wall -Wextra)
+
+set(PARTICLES_LANG "${CMAKE_SOURCE_DIR}/readit/particles.lang")
+add_executable(mycc_test_lexer
+    ../tests/unit/test_lexer.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+)
+target_include_directories(mycc_test_lexer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_lexer PRIVATE -Wall -Wextra)
+# Pass particles.lang path at runtime via a generated wrapper, or simply pass as arg.
+# The test binary accepts the path as argv[1].
+
+add_executable(mycc_test_ast
+    ../tests/unit/test_ast.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+)
+target_include_directories(mycc_test_ast PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_ast PRIVATE -Wall -Wextra)
+
+add_executable(mycc_test_parser
+    ../tests/unit/test_parser.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+)
+target_include_directories(mycc_test_parser PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_parser PRIVATE -Wall -Wextra)
+
+add_executable(mycc_test_s6
+    ../tests/unit/test_s6.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+)
+target_include_directories(mycc_test_s6 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s6 PRIVATE -Wall -Wextra)
+
+add_executable(mycc_test_s7
+    ../tests/unit/test_s7.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+)
+target_include_directories(mycc_test_s7 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s7 PRIVATE -Wall -Wextra)
+
+set(TESTS_DIR "${CMAKE_SOURCE_DIR}/readit/tests")
+add_executable(mycc_test_s8
+    ../tests/unit/test_s8.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s8 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s8 PRIVATE -Wall -Wextra)
+add_test(NAME s8 COMMAND mycc_test_s8 ${TESTS_DIR})
+
+add_executable(mycc_test_s9
+    ../tests/unit/test_s9.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s9 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s9 PRIVATE -Wall -Wextra)
+add_test(NAME s9 COMMAND mycc_test_s9 ${TESTS_DIR})
+
+add_executable(mycc_test_s10
+    ../tests/unit/test_s10.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s10 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s10 PRIVATE -Wall -Wextra)
+add_test(NAME s10 COMMAND mycc_test_s10 ${TESTS_DIR})
+

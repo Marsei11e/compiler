@@ -1,0 +1,14 @@
+-- 03_for_range.lang
+-- for по диапазону-литералу. Результат: сумма 0..10 == 45.
+-- expect_stdout:
+-- 45
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var total: int32 = 0;
+    for i in 0..10 {
+        total = total + i;
+    }
+    println(total);
+    return 0;
+}
