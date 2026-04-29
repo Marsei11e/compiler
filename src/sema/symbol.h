@@ -1,6 +1,8 @@
 #pragma once
+
 #include "parser/ast.h"
 #include "sema/type.h"
+
 #include <string>
 #include <vector>
 

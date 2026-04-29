@@ -1,4 +1,6 @@
+
 #pragma once
+
 #include "diag/diagnostic.h"
 #include "diag/source.h"
 #include "parser/ast.h"

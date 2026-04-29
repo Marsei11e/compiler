@@ -16,6 +16,10 @@ set(SEMA_SOURCES
     sema/sema.cpp
     sema/expr_check.cpp
     sema/overload.cpp
+    sema/desugar.cpp
+    sema/cflow_check.cpp
+    sema/move_check.cpp
+    sema/effect.cpp
 )
 
 add_executable(myc main.cpp ${DIAG_SOURCES} ${LEXER_SOURCES} ${PARSER_SOURCES} ${SEMA_SOURCES})
@@ -114,4 +118,37 @@ add_executable(mycc_test_s10
 target_include_directories(mycc_test_s10 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s10 PRIVATE -Wall -Wextra)
 add_test(NAME s10 COMMAND mycc_test_s10 ${TESTS_DIR})
+
+add_executable(mycc_test_s11
+    ../tests/unit/test_s11.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s11 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s11 PRIVATE -Wall -Wextra)
+add_test(NAME s11 COMMAND mycc_test_s11 ${TESTS_DIR})
+
+add_executable(mycc_test_s12
+    ../tests/unit/test_s12.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s12 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s12 PRIVATE -Wall -Wextra)
+add_test(NAME s12 COMMAND mycc_test_s12 ${TESTS_DIR})
+
+add_executable(mycc_test_s13
+    ../tests/unit/test_s13.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+)
+target_include_directories(mycc_test_s13 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s13 PRIVATE -Wall -Wextra)
+add_test(NAME s13 COMMAND mycc_test_s13 ${TESTS_DIR})
 

@@ -1,7 +1,14 @@
+
 #include "sema/sema.h"
+#include "sema/cflow_check.h"
+#include "sema/desugar.h"
+#include "sema/effect.h"
+#include "sema/move_check.h"
 #include "sema/overload.h"
+
 #include "lexer/token.h"
 #include "parser/ast.h"
+
 #include <cassert>
 #include <optional>
 #include <string>
@@ -36,7 +43,11 @@ static bool cast_valid(const TypeInterner& ti, TypeId from, TypeId to) {
 
 
 bool Sema::analyze_pass2(ast::Program& prog) {
+    desugar_program(prog, diag_);
     analyze_fns_in_scope(prog.decls, global_.get());
+    check_control_flow(prog, diag_);
+    check_moves(prog, types_, diag_);
+    check_effects(prog, *global_, struct_type_map_, types_, diag_);
     return !diag_.has_errors();
 }
 
@@ -634,13 +645,12 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
 
     
 
-    case NodeKind::PipeExpr: {
-        auto* pe = ast_cast<PipeExpr>(expr);
-        check_expr(pe->left.get(),  kInvalidTypeId, scope);
-        check_expr(pe->right.get(), kInvalidTypeId, scope);
-        ty = kHollowTy;
+    
+    
+    
+    case NodeKind::PipeExpr:
+        ty = kInvalidTypeId;
         break;
-    }
 
     case NodeKind::NamespaceAccess:
         ty = kHollowTy;

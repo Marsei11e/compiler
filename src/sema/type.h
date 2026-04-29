@@ -1,5 +1,7 @@
 #pragma once
+
 #include "parser/ast.h"
+
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

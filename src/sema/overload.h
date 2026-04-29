@@ -1,7 +1,10 @@
+
 #pragma once
+
 #include "parser/ast.h"
 #include "sema/symbol.h"
 #include "sema/type.h"
+
 #include <span>
 #include <string>
 
