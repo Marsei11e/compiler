@@ -1,0 +1,31 @@
+-- 01_methods.lang
+-- Методы структуры с параметром self.
+-- expect_stdout:
+-- 25
+-- 7
+-- expect_exit: 0
+
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+impl Point {
+    fn norm_sq(self: Point) -> int32 @pure {
+        return self.x * self.x + self.y * self.y;
+    }
+
+    fn manhattan(self: Point) -> int32 @pure {
+        -- |x| + |y| — здесь координаты неотрицательные, но напишем общо
+        var ax: int32 = if self.x < 0 { -self.x } else { self.x };
+        var ay: int32 = if self.y < 0 { -self.y } else { self.y };
+        return ax + ay;
+    }
+}
+
+fn main() -> int32 {
+    var p: Point = Point{ x: 3, y: 4 };
+    println(p.norm_sq());     -- 25
+    println(p.manhattan());   -- 7
+    return 0;
+}

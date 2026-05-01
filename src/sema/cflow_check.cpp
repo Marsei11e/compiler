@@ -1,6 +1,13 @@
-
+/*проход проверки потока управления
+один walker на тело функции. отслеживает:
+- глубину вложенности циклов  -> break/continue должны быть внутри цикла
+- глубину вложенности defer   -> тело не должно содержать return/break/continue/defer
+ - завершаемость каждого пути  -> если тип возврата не hollow, не должно быть пути,  достигающего закрывающей скобки
+ - завершаемость вычисляется снизу вверх. инструкция дивергирует если передает
+-  управление из функции (return, panic, exit) или из блока (break, continue).
+-  блок дивергирует если одна из инструкций дивергирует до конца.
+ - if-инструкция дивергирует если обе ветки дивергируют (else обязателен для распространения)*/
 #include "sema/cflow_check.h"
-
 #include "lexer/token.h"
 #include "parser/ast.h"
 
@@ -268,10 +275,10 @@ void walk_decls(const std::vector<DeclPtr>& decls, diag::DiagnosticEngine& diag)
     }
 }
 
-} 
+} // namespace
 
 void check_control_flow(ast::Program& prog, diag::DiagnosticEngine& diag) {
     walk_decls(prog.decls, diag);
 }
 
-} 
+} // namespace mycc::sema

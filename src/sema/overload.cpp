@@ -1,4 +1,4 @@
-
+/* реализация разрешения перегрузки - семантика §13.2 */
 #include "sema/overload.h"
 #include "lexer/token.h"
 
@@ -30,9 +30,7 @@ OverloadSet filter_by_name(const OverloadSet& all, const std::string& name) {
     return result;
 }
 
-
-
-
+// возвращает {точное, применимо} для одной пары (арг, параметр)
 static std::pair<bool, bool> check_arg_compat(TypeId natural_ty, ArgKind kind,
                                                TypeId param_ty,
                                                const TypeInterner& ti) {
@@ -40,12 +38,12 @@ static std::pair<bool, bool> check_arg_compat(TypeId natural_ty, ArgKind kind,
         bool exact = (natural_ty == param_ty);
         return {exact, exact};
     }
-    
+    // несуффиксированный литерал — правила адаптации, никогда не точный
     if (kind == ArgKind::UnsuffixedInt) {
         bool adapt = ti.is_signed_int(param_ty) || ti.is_unsigned_int(param_ty);
         return {false, adapt};
     }
-    
+    // несуффиксированный float
     bool adapt = ti.is_float(param_ty);
     return {false, adapt};
 }
@@ -57,7 +55,7 @@ ResolveResult resolve_call(const OverloadSet&       candidates,
     assert(arg_types.size() == arg_kinds.size());
     const size_t nargs = arg_types.size();
 
-    
+    // любой невалидный арг означает ошибку выше, тихо выходим
     for (TypeId t : arg_types)
         if (t == kInvalidTypeId)
             return {nullptr, OverloadStatus::NoMatch};
@@ -85,7 +83,7 @@ ResolveResult resolve_call(const OverloadSet&       candidates,
     if (applicable.size() == 1)
         return {applicable[0].fn, OverloadStatus::Resolved};
 
-    
+    // несколько применимых: предпочитаем единственного all-exact кандидата (§13.2 шаг 7)
     FnSymbol* winner     = nullptr;
     int       exact_count = 0;
     for (auto& c : applicable) {
@@ -98,4 +96,4 @@ ResolveResult resolve_call(const OverloadSet&       candidates,
     return {nullptr, OverloadStatus::Ambiguous};
 }
 
-} 
+} // namespace mycc::sema

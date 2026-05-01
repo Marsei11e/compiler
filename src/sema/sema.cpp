@@ -1,4 +1,4 @@
-
+/* семантика проход 1 - сбор объявлений верхнего уровня и структурные проверки */
 #include "sema/sema.h"
 #include "sema/overload.h"
 
@@ -12,7 +12,7 @@ namespace mycc::sema {
 
 using namespace ast;
 
-
+// статические вспомогалки
 
 static TypeKind token_to_typekind(lex::TokenKind k) {
     switch (k) {
@@ -35,7 +35,7 @@ static TypeKind token_to_typekind(lex::TokenKind k) {
     }
 }
 
-
+// проверка повторных объявлений в теле (без анализа типов)
 
 namespace {
 
@@ -108,9 +108,9 @@ void check_stmt_blocks(const Stmt* stmt, diag::DiagnosticEngine& diag) {
     }
 }
 
-} 
+} // anonymous namespace
 
-
+// Sema
 
 Sema::Sema(diag::DiagnosticEngine& diag, diag::SourceManager& sm)
     : diag_(diag), sm_(sm), global_(std::make_unique<Scope>()) {
@@ -118,7 +118,7 @@ Sema::Sema(diag::DiagnosticEngine& diag, diag::SourceManager& sm)
 }
 
 void Sema::init_builtins() {
-    
+    // лямбда для регистрации одной перегрузки в глобальном скоупе
     auto reg = [&](const char* fn_name, TypeId ret_ty,
                     std::initializer_list<TypeId> param_tys,
                     std::initializer_list<ast::EffectKind> effs) {
@@ -135,7 +135,7 @@ void Sema::init_builtins() {
         global_->declare(fn_name, std::move(sym));
     };
 
-    
+    // константы TypeId (встроенные по индексам, соответствующим TypeKind enum)
     TypeId kHol{static_cast<uint32_t>(TypeKind::Hollow)};
     TypeId kI8 {static_cast<uint32_t>(TypeKind::I8)};
     TypeId kI16{static_cast<uint32_t>(TypeKind::I16)};
@@ -152,18 +152,18 @@ void Sema::init_builtins() {
 
     using EK = ast::EffectKind;
 
-    
+    // print(T) -> hollow @io и println(T) -> hollow @io для всех печатаемых T
     for (TypeId pt : {kI8, kI16, kI32, kI64, kU8, kU16, kU32, kU64,
                        kF32, kF64, kBol, kStr}) {
         reg("print",   kHol, {pt}, {EK::Io});
         reg("println", kHol, {pt}, {EK::Io});
     }
-    reg("println", kHol, {}, {EK::Io});   
+    reg("println", kHol, {}, {EK::Io});   // println() — newline only
 
-    reg("input", kStr, {},    {EK::Io});       
-    reg("exit",  kHol, {kI32},{EK::Panics});   
-    reg("panic", kHol, {kStr},{EK::Panics});   
-    reg("len",   kI32, {kStr},{EK::Pure});     
+    reg("input", kStr, {},    {EK::Io});       // input() -> string @io
+    reg("exit",  kHol, {kI32},{EK::Panics});   // exit(int32) -> hollow @panics
+    reg("panic", kHol, {kStr},{EK::Panics});   // panic(string) -> hollow @panics
+    reg("len",   kI32, {kStr},{EK::Pure});     // len(string) -> int32 @pure
 }
 
 bool Sema::analyze_pass1(ast::Program& prog) {
@@ -254,7 +254,7 @@ void Sema::collect_decl(ast::Decl* decl, Scope* scope) {
         collect_namespace_decl(ast_cast<NamespaceDecl>(decl), scope);
         break;
     case NodeKind::TypeAliasDecl:
-        
+        // отложено: псевдонимы пока не используются в проходе 1
         break;
     case NodeKind::VarDecl: {
         auto* vd = ast_cast<VarDecl>(decl);
@@ -300,7 +300,7 @@ void Sema::collect_fn(ast::FnDecl* fn, Scope* scope) {
         ? resolve_type(fn->return_type.get(), scope)
         : types_.intern_builtin(TypeKind::Hollow);
 
-    
+    // 'main' нельзя перегружать
     if (fn->name == "main" && scope->lookup_local("main")) {
         diag_.report({diag::Severity::Error, fn->loc,
                       "'main' cannot be overloaded"});
@@ -308,7 +308,7 @@ void Sema::collect_fn(ast::FnDecl* fn, Scope* scope) {
         return;
     }
 
-    
+    // дублирующая сигнатура в существующем наборе перегрузок
     if (auto* ent = scope->lookup_local(fn->name)) {
         if (auto* os = std::get_if<OverloadSet>(ent)) {
             for (auto* other : os->overloads) {
@@ -356,8 +356,8 @@ void Sema::collect_struct(ast::StructDecl* s, Scope* scope) {
         sym.fields.push_back(std::move(f));
     }
     scope->declare(s->name, std::move(sym));
-    
-    
+    // регистрируем стабильный указатель для поиска полей в проходе 2
+    // unordered_map гарантирует стабильность ссылок на значения после вставок
     if (auto* ent = scope->lookup_local(s->name))
         if (auto* ss = std::get_if<StructSymbol>(ent))
             struct_type_map_[ss->type_id.index] = ss;
@@ -442,4 +442,4 @@ void Sema::check_body_redeclarations(ast::Expr* body_expr) {
     check_block_redecl(ast_cast<BlockExpr>(body_expr), diag_);
 }
 
-} 
+} // namespace mycc::sema

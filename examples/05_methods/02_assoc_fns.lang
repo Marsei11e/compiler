@@ -1,0 +1,34 @@
+-- 02_assoc_fns.lang
+-- Ассоциированные функции (без self) — конструкторы.
+-- expect_stdout:
+-- 0
+-- 0
+-- 3
+-- 4
+-- expect_exit: 0
+
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+impl Point {
+    fn origin() -> Point @pure {
+        return Point{ x: 0, y: 0 };
+    }
+
+    fn make(x: int32, y: int32) -> Point @pure {
+        return Point{ x: x, y: y };
+    }
+}
+
+fn main() -> int32 {
+    var o: Point = Point::origin();
+    println(o.x);       -- 0
+    println(o.y);       -- 0
+
+    var p: Point = Point::make(3, 4);
+    println(p.x);       -- 3
+    println(p.y);       -- 4
+    return 0;
+}

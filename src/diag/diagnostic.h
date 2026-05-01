@@ -1,5 +1,8 @@
+/* движок диагностики - собирает и выводит ошибки компилятора */
 #pragma once
+
 #include "source.h"
+
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -14,6 +17,7 @@ struct Diagnostic {
     std::string    message;
 };
 
+/* накапливает диагностику и выводит её, кап — kMaxErrors ошибок */
 class DiagnosticEngine {
 public:
     static constexpr int kMaxErrors = 20;
@@ -25,6 +29,7 @@ public:
     int  error_count()   const { return error_count_; }
     bool has_errors()    const { return error_count_ > 0; }
 
+    // выводит все собранные диагностики в `out`, вызывать один раз
     void emit_all(std::ostream& out) const;
 
 private:
@@ -36,4 +41,4 @@ private:
     static std::string_view severity_label(Severity s);
 };
 
-}
+} // namespace mycc::diag

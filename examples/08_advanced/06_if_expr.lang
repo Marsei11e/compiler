@@ -1,0 +1,17 @@
+-- 06_if_expr.lang
+-- if в позиции выражения: обе ветки обязательны, типы совпадают.
+-- expect_stdout:
+-- 10
+-- big
+-- expect_exit: 0
+
+fn main() -> int32 {
+    var a: int32 = 7;
+    var b: int32 = 10;
+    var m: int32 = if a > b { a } else { b };       -- max == 10
+    println(m);
+
+    var label: string = if m > 5 { "big" } else { "small" };
+    println(label);
+    return 0;
+}

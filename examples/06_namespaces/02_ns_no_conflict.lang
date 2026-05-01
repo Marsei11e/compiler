@@ -1,0 +1,30 @@
+-- 02_ns_no_conflict.lang
+-- Одинаковые имена в разных пространствах — отдельные сущности.
+-- expect_stdout:
+-- module
+-- a
+-- b
+-- expect_exit: 0
+
+fn greet() -> hollow @io {
+    println("module");
+}
+
+namespace A {
+    fn greet() -> hollow @io {
+        println("a");
+    }
+}
+
+namespace B {
+    fn greet() -> hollow @io {
+        println("b");
+    }
+}
+
+fn main() -> int32 {
+    greet();         -- модульная
+    A::greet();      -- A
+    B::greet();      -- B
+    return 0;
+}

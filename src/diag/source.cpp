@@ -1,4 +1,6 @@
+/* реализация SourceManager */
 #include "source.h"
+
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -7,7 +9,7 @@ namespace mycc::diag {
 
 std::vector<uint32_t> SourceManager::build_line_offsets(std::string_view src) {
     std::vector<uint32_t> offsets;
-    offsets.push_back(0);
+    offsets.push_back(0); // строка 1 начинается с нуля
     for (uint32_t i = 0; i < static_cast<uint32_t>(src.size()); ++i) {
         if (src[i] == '\n') {
             offsets.push_back(i + 1);
@@ -36,6 +38,7 @@ SourceLocation SourceManager::location_of(FileId fid, uint32_t offset) const {
     const SourceFile* sf = get_file(fid);
     if (!sf) return {kInvalidFileId, 0, 0};
 
+    // бинарный поиск строки, чья стартовая позиция <= offset
     auto it = std::upper_bound(sf->line_offsets.begin(), sf->line_offsets.end(), offset);
     --it;
     uint32_t line = static_cast<uint32_t>(it - sf->line_offsets.begin()) + 1;
@@ -54,4 +57,4 @@ const SourceFile* SourceManager::get_file(FileId fid) const {
     return &files_[fid - 1];
 }
 
-} 
+} // namespace mycc::diag

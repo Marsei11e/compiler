@@ -1,4 +1,4 @@
-
+/*раскрытие оператора |>. правила перезаписи см. в desugar.h */
 #include "sema/desugar.h"
 
 #include "parser/ast.h"
@@ -16,9 +16,9 @@ void desugar_expr(ExprPtr& slot, diag::DiagnosticEngine& diag);
 void desugar_stmt(Stmt* s,        diag::DiagnosticEngine& diag);
 void desugar_decl(Decl* d,        diag::DiagnosticEngine& diag);
 
-
-
-
+// строит новый CallExpr для перезаписи pe, или nullptr если правая часть
+// не является вызываемой формой (диагностика уже отправлена)
+// потомки pe предполагаются уже раскрытыми
 ExprPtr build_pipe_call(PipeExpr* pe, diag::DiagnosticEngine& diag) {
     diag::SourceLocation loc = pe->loc;
     ExprPtr left  = std::move(pe->left);
@@ -219,10 +219,10 @@ void desugar_decl(Decl* d, diag::DiagnosticEngine& diag) {
     }
 }
 
-} 
+} // namespace
 
 void desugar_program(ast::Program& prog, diag::DiagnosticEngine& diag) {
     for (auto& d : prog.decls) desugar_decl(d.get(), diag);
 }
 
-} 
+} // namespace mycc::sema

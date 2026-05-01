@@ -1,0 +1,24 @@
+-- 05_defer_early_return.lang
+-- Defer срабатывает при раннем return — даже если return стоит до конца тела.
+-- expect_stdout:
+-- enter
+-- cleanup
+-- got 1
+-- expect_exit: 0
+
+fn try_thing() -> int32 @io {
+    println("enter");
+    defer println("cleanup");
+    if true {
+        return 1;        -- defer должен выполниться перед фактическим return
+    }
+    println("never");
+    return 0;
+}
+
+fn main() -> int32 {
+    var r: int32 = try_thing();
+    print("got ");
+    println(r);
+    return 0;
+}

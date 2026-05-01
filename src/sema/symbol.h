@@ -44,7 +44,7 @@ struct StructSymbol {
     TypeId             type_id{kInvalidTypeId};
     std::vector<Field> fields;
     OverloadSet        methods;
-    
+    // владеет объектами FnSymbol, на которые ссылается methods.overloads
     std::vector<std::unique_ptr<FnSymbol>> method_storage;
 };
 
@@ -53,4 +53,4 @@ struct NamespaceSymbol {
     Scope*      scope{nullptr};
 };
 
-} 
+} // namespace mycc::sema

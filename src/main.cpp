@@ -1,10 +1,12 @@
-
 #include "diag/diagnostic.h"
 #include "diag/source.h"
+#include "ir/dump.h"
+#include "ir/lowering.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "parser/ast_dump.h"
 #include "parser/parser.h"
+#include "sema/sema.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -60,14 +62,43 @@ static int cmd_dump_ast(const std::string& path) {
     return diag.has_errors() ? 1 : 0;
 }
 
+static int cmd_dump_ir(const std::string& path) {
+    mycc::diag::SourceManager sm;
+    mycc::diag::FileId fid = sm.load_file(path);
+    if (fid == mycc::diag::kInvalidFileId) {
+        std::cerr << "error: cannot open file '" << path << "'\n";
+        return 1;
+    }
+    mycc::diag::DiagnosticEngine diag(sm);
+
+    const mycc::diag::SourceFile* sf = sm.get_file(fid);
+    mycc::lex::Lexer lexer(sf->contents, fid, diag);
+    auto tokens = lexer.tokenize();
+
+    mycc::parse::Parser parser(tokens, diag);
+    auto prog = parser.parse();
+    if (diag.has_errors()) { diag.emit_all(std::cerr); return 1; }
+
+    mycc::sema::Sema sema(diag, sm);
+    if (!sema.analyze_pass1(prog)) { diag.emit_all(std::cerr); return 1; }
+    if (!sema.analyze_pass2(prog)) { diag.emit_all(std::cerr); return 1; }
+
+    auto mod = mycc::ir::lower_program(prog, sema, diag);
+    mycc::ir::dump_module(*mod, std::cout);
+
+    diag.emit_all(std::cerr);
+    return diag.has_errors() ? 1 : 0;
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "usage: myc [--version] [--dump-tokens] [--dump-ast] <source>\n";
+        std::cerr << "usage: myc [--version] [--dump-tokens] [--dump-ast] [--dump-ir] <source>\n";
         return 1;
     }
 
     bool dump_tokens = false;
     bool dump_ast    = false;
+    bool dump_ir     = false;
     std::string source_file;
 
     for (int i = 1; i < argc; ++i) {
@@ -79,6 +110,8 @@ int main(int argc, char* argv[]) {
             dump_tokens = true;
         } else if (arg == "--dump-ast") {
             dump_ast = true;
+        } else if (arg == "--dump-ir") {
+            dump_ir = true;
         } else {
             source_file = std::string(arg);
         }
@@ -87,8 +120,8 @@ int main(int argc, char* argv[]) {
     if (!source_file.empty()) {
         if (dump_tokens) return cmd_dump_tokens(source_file);
         if (dump_ast)    return cmd_dump_ast(source_file);
+        if (dump_ir)     return cmd_dump_ir(source_file);
     }
 
-    
     return EXIT_SUCCESS;
 }

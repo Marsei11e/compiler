@@ -1,4 +1,11 @@
-
+/* проход валидации системы эффектов
+для каждого аннотированного тела обходим АСТ и выдаем диагностику в каждом месте, чьи эффекты не входят в объявленный набор.
+источники эффектов (§12.2):
+целочисленные / и %  (любые signed/unsigned int)  -> @panics
+индексирование массива a[i] -> @panics
+вызов функции с аннотацией E ->E
+вызов неаннотированной пользовательской функции -> неизвестно
+встроенные (FnSymbol::decl == nullptr) всегда несут явные эффекты, никогда не считаются "неаннотированными"*/
 #include "sema/effect.h"
 #include "sema/overload.h"
 
@@ -44,7 +51,7 @@ public:
                     (types_.is_signed_int(lt) || types_.is_unsigned_int(lt))) {
                     report_int_division(e->loc);
                 }
-                
+                // float / (и невозможный float %) — чистые по A.1
             }
             break;
         }
@@ -222,13 +229,13 @@ private:
 
     void report_unknown_call(diag::SourceLocation loc, const std::string& callee) {
         if (allow_.is_pure) {
-            
+            // @pure → жесткая ошибка на каждом месте, без дросселирования (§12.3)
             diag_.report({diag::Severity::Error, loc,
                 "@pure function '" + fn_name_ +
                 "' cannot call unannotated function '" + callee + "'"});
             return;
         }
-        
+        // §12.5(б): не более одного предупреждения на объявление вызывающего
         if (unknown_warning_emitted_) return;
         unknown_warning_emitted_ = true;
         diag_.report({diag::Severity::Warning, loc,
@@ -240,8 +247,8 @@ private:
                               const std::string& callee,
                               const FnSymbol* fn) {
         if (!fn) return;
-        
-        
+        // встроенные (decl == nullptr) всегда несут явные эффекты,
+        // никогда не считаются неаннотированными даже с пустым набором
         if (fn->effects.empty() && fn->decl != nullptr) {
             report_unknown_call(loc, callee);
             return;
@@ -337,7 +344,7 @@ void walk_fn(FnDecl* fn,
              const TypeInterner& types,
              diag::DiagnosticEngine& diag) {
     if (!fn->body) return;
-    if (fn->effects.empty()) return;  
+    if (fn->effects.empty()) return; // без аннотации → не проверяем (§12.5)
 
     AllowSet allow;
     for (auto e : fn->effects) {
@@ -382,7 +389,7 @@ void walk_decls(const std::vector<DeclPtr>& decls,
     }
 }
 
-} 
+} // namespace
 
 void check_effects(ast::Program& prog,
                    Scope& global_scope,
@@ -392,4 +399,4 @@ void check_effects(ast::Program& prog,
     walk_decls(prog.decls, global_scope, struct_type_map, types, diag);
 }
 
-} 
+} // namespace mycc::sema

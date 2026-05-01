@@ -1,0 +1,17 @@
+-- 03_defer_lifo.lang
+-- Defer выполняются в обратном порядке (LIFO) при выходе из блока.
+-- expect_stdout:
+-- start
+-- middle
+-- cleanup 2
+-- cleanup 1
+-- expect_exit: 0
+
+fn main() -> int32 {
+    println("start");
+    defer println("cleanup 1");
+    defer println("cleanup 2");
+    println("middle");
+    return 0;
+    -- При выходе по return: сначала "cleanup 2", потом "cleanup 1".
+}

@@ -25,7 +25,7 @@ public:
         return true;
     }
 
-    
+    // сливает в существующий OverloadSet, возвращает false если имя занято не функцией
     bool declare(const std::string& name, FnSymbol sym) {
         auto it = entries_.find(name);
         if (it == entries_.end()) {
@@ -54,7 +54,7 @@ public:
         return true;
     }
 
-    
+    // обходит цепочку родителей, возвращает nullptr если не найдено
     ScopeEntry* lookup(const std::string& name) {
         auto it = entries_.find(name);
         if (it != entries_.end()) return &it->second;
@@ -80,4 +80,4 @@ private:
     std::vector<std::unique_ptr<FnSymbol>>         fn_storage_;
 };
 
-} 
+} // namespace mycc::sema

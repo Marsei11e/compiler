@@ -1,0 +1,14 @@
+-- 01_pipe_basic.lang
+-- Pipe-оператор: x |> f эквивалентно f(x). Левоассоциативность.
+-- expect_stdout:
+-- 11
+-- expect_exit: 0
+
+fn double(x: int32) -> int32 @pure { return x * 2; }
+fn inc(x: int32)    -> int32 @pure { return x + 1; }
+
+fn main() -> int32 {
+    var r: int32 = 5 |> double |> inc;     -- inc(double(5)) == 11
+    println(r);
+    return 0;
+}

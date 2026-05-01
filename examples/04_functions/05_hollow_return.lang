@@ -1,0 +1,19 @@
+-- 05_hollow_return.lang
+-- Функции с типом возврата hollow (без значения).
+-- expect_stdout:
+-- a
+-- b
+-- c
+-- expect_exit: 0
+
+fn print_three() -> hollow @io {
+    println("a");
+    println("b");
+    println("c");
+    -- return без значения опционален
+}
+
+fn main() -> int32 {
+    print_three();
+    return 0;
+}

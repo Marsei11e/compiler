@@ -22,7 +22,12 @@ set(SEMA_SOURCES
     sema/effect.cpp
 )
 
-add_executable(myc main.cpp ${DIAG_SOURCES} ${LEXER_SOURCES} ${PARSER_SOURCES} ${SEMA_SOURCES})
+set(IR_SOURCES
+    ir/lowering.cpp
+    ir/dump.cpp
+)
+
+add_executable(myc main.cpp ${DIAG_SOURCES} ${LEXER_SOURCES} ${PARSER_SOURCES} ${SEMA_SOURCES} ${IR_SOURCES})
 target_link_libraries(myc PRIVATE mycrt)
 target_include_directories(myc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -151,4 +156,16 @@ add_executable(mycc_test_s13
 target_include_directories(mycc_test_s13 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s13 PRIVATE -Wall -Wextra)
 add_test(NAME s13 COMMAND mycc_test_s13 ${TESTS_DIR})
+
+add_executable(mycc_test_s14
+    ../tests/unit/test_s14.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+    ${IR_SOURCES}
+)
+target_include_directories(mycc_test_s14 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s14 PRIVATE -Wall -Wextra)
+add_test(NAME s14 COMMAND mycc_test_s14 ${TESTS_DIR})
 

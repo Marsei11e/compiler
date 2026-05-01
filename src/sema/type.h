@@ -37,7 +37,7 @@ struct TypeData {
     std::string      display;
 };
 
-} 
+} // namespace detail
 
 class TypeInterner {
 public:
@@ -54,7 +54,7 @@ public:
             d.display = builtin_display(k);
             types_.push_back(std::move(d));
         }
-        
+        // проверяем контракт enum → индекс
         assert(types_[static_cast<uint32_t>(TypeKind::I32)].kind == TypeKind::I32);
         assert(types_[static_cast<uint32_t>(TypeKind::Hollow)].kind == TypeKind::Hollow);
     }
@@ -90,7 +90,7 @@ public:
         return it->second;
     }
 
-    
+    // номинальный: каждый указатель StructDecl получает свой TypeId
     TypeId intern_struct(ast::StructDecl* decl) {
         detail::TypeData d;
         d.kind        = TypeKind::Struct;
@@ -178,4 +178,4 @@ private:
     std::unordered_map<uint32_t, TypeId>  range_cache_;
 };
 
-} 
+} // namespace mycc::sema

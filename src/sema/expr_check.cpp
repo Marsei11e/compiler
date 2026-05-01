@@ -1,4 +1,4 @@
-
+/* семантика проход 2 - проверка типов выражений и разрешение имен в телах функций */
 #include "sema/sema.h"
 #include "sema/cflow_check.h"
 #include "sema/desugar.h"
@@ -19,7 +19,7 @@ namespace mycc::sema {
 
 using namespace ast;
 
-
+// встроенные константы TypeId (встроенные типы занимают фиксированные индексы 0–12)
 
 static constexpr TypeId kBoolTy   {static_cast<uint32_t>(TypeKind::Bool)};
 static constexpr TypeId kHollowTy {static_cast<uint32_t>(TypeKind::Hollow)};
@@ -28,7 +28,7 @@ static constexpr TypeId kF32Ty    {static_cast<uint32_t>(TypeKind::F32)};
 static constexpr TypeId kF64Ty    {static_cast<uint32_t>(TypeKind::F64)};
 static constexpr TypeId kStringTy {static_cast<uint32_t>(TypeKind::String)};
 
-
+// допустимые касты по types.md §7
 
 static bool cast_valid(const TypeInterner& ti, TypeId from, TypeId to) {
     if (from == kInvalidTypeId || to == kInvalidTypeId) return false;
@@ -40,7 +40,7 @@ static bool cast_valid(const TypeInterner& ti, TypeId from, TypeId to) {
     return false;
 }
 
-
+// точка входа прохода 2
 
 bool Sema::analyze_pass2(ast::Program& prog) {
     desugar_program(prog, diag_);
@@ -132,7 +132,7 @@ void Sema::check_fn_body(ast::FnDecl* fn, Scope* parent) {
     current_in_loop_      = saved_loop;
 }
 
-
+// check_expr
 
 TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
     if (!expr) return kHollowTy;
@@ -141,7 +141,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
 
     switch (expr->kind) {
 
-    
+    // литералы
 
     case NodeKind::IntLit: {
         auto* lit = ast_cast<IntLit>(expr);
@@ -177,7 +177,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         ty = kStringTy;
         break;
 
-    
+    // идентификаторы
 
     case NodeKind::IdentExpr: {
         auto* ie = ast_cast<IdentExpr>(expr);
@@ -191,7 +191,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         if (auto* vs = std::get_if<VarSymbol>(ent)) {
             ty = vs->type;
         } else {
-            
+            // OverloadSet / StructSymbol / NamespaceSymbol — не значение, разбирается в S10
             ty = kInvalidTypeId;
         }
         break;
@@ -208,7 +208,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // доступ к полям и индексам
 
     case NodeKind::FieldAccess: {
         auto* fa = ast_cast<FieldAccess>(expr);
@@ -257,7 +257,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // унарные
 
     case NodeKind::UnaryExpr: {
         auto* ue = ast_cast<UnaryExpr>(expr);
@@ -272,7 +272,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
                 ty = kBoolTy;
             }
         } else {
-            
+            // UnaryOp::Neg
             TypeId oty = check_expr(ue->operand.get(), expected, scope);
             if (oty == kInvalidTypeId) {
                 ty = kInvalidTypeId;
@@ -288,7 +288,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // бинарные
 
     case NodeKind::BinaryExpr: {
         auto* be = ast_cast<BinaryExpr>(expr);
@@ -296,7 +296,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // диапазоны
 
     case NodeKind::RangeExpr: {
         auto* re = ast_cast<RangeExpr>(expr);
@@ -322,7 +322,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // касты
 
     case NodeKind::CastExpr: {
         auto* ce = ast_cast<CastExpr>(expr);
@@ -342,7 +342,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // if-выражение
 
     case NodeKind::IfExpr: {
         auto* ie = ast_cast<IfExpr>(expr);
@@ -372,7 +372,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // блок-выражение
 
     case NodeKind::BlockExpr: {
         auto* block      = ast_cast<BlockExpr>(expr);
@@ -385,7 +385,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // литерал массива
 
     case NodeKind::ArrayLit: {
         auto* al = ast_cast<ArrayLit>(expr);
@@ -431,7 +431,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // литерал структуры
 
     case NodeKind::StructLit: {
         auto* sl = ast_cast<StructLit>(expr);
@@ -448,7 +448,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
             ty = kInvalidTypeId; break;
         }
 
-        
+        // строим карту имя поля → тип
         std::unordered_map<std::string, TypeId> field_map;
         for (auto& f : ss->fields)
             field_map[f.name] = f.type;
@@ -480,12 +480,12 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // вызовы функций с разрешением перегрузки (§13.2)
 
     case NodeKind::CallExpr: {
         auto* ce = ast_cast<CallExpr>(expr);
 
-        
+        // сначала вычисляем все аргументы (естественные типы, без контекста ожидания)
         std::vector<TypeId>  arg_types;
         std::vector<ArgKind> arg_kinds;
         arg_types.reserve(ce->args.size());
@@ -495,12 +495,12 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
             arg_kinds.push_back(arg_kind_of(arg.get()));
         }
 
-        
+        // если хоть один аргумент не прошел, не выдаем каскадных ошибок перегрузки
         bool any_bad = false;
         for (TypeId t : arg_types) if (t == kInvalidTypeId) { any_bad = true; break; }
         if (any_bad) { ty = kHollowTy; break; }
 
-        
+        // находим набор перегрузок из выражения вызываемого
         std::optional<OverloadSet> tmp_os;
         const OverloadSet* overloads = nullptr;
         std::string        fn_name;
@@ -556,7 +556,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
                 ty = kInvalidTypeId; break;
             }
         } else {
-            
+            // неподдерживаемая форма вызываемого
             ty = kHollowTy; break;
         }
 
@@ -565,7 +565,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         auto result = resolve_call(*overloads, arg_types, arg_kinds, types_);
         switch (result.status) {
         case OverloadStatus::Resolved:
-            
+            // перепроверяем аргументы с уточненными типами параметров — правим resolved_type_id у литералов
             for (size_t i = 0; i < ce->args.size(); ++i)
                 check_expr(ce->args[i].get(), result.fn->params[i].type, scope);
             ty = result.fn->return_ty;
@@ -584,7 +584,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // вызовы методов с разрешением перегрузки (§13.4)
 
     case NodeKind::MethodCallExpr: {
         auto* mc = ast_cast<MethodCallExpr>(expr);
@@ -643,11 +643,11 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         break;
     }
 
-    
+    // pipe и одиночный доступ к пространству имен
 
-    
-    
-    
+    // PipeExpr переписывается в CallExpr до прохода 2 в desugar_program(),
+    // значит сюда мы попали только если desugar уже сообщил об ошибке
+    // (недопустимая правая часть). подавляем каскадные диагностики.
     case NodeKind::PipeExpr:
         ty = kInvalidTypeId;
         break;
@@ -665,12 +665,12 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
     return ty;
 }
 
-
+// проверка типов бинарного выражения
 
 TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scope) {
     using BO = BinaryOp;
 
-    
+    // логические операторы
     if (be->op == BO::And || be->op == BO::Or) {
         TypeId lt = check_expr(be->left.get(),  kBoolTy, scope);
         TypeId rt = check_expr(be->right.get(), kBoolTy, scope);
@@ -685,7 +685,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
         return kBoolTy;
     }
 
-    
+    // операторы сравнения
     if (be->op == BO::Eq  || be->op == BO::Ne  ||
         be->op == BO::Lt  || be->op == BO::Gt  ||
         be->op == BO::Le  || be->op == BO::Ge) {
@@ -694,7 +694,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
         TypeId rt = check_expr(be->right.get(), lt, scope);
         if (lt == kInvalidTypeId || rt == kInvalidTypeId) return kInvalidTypeId;
 
-        
+        // range[T] не сравнимы (types.md §2.8)
         if (types_.get(lt).kind == TypeKind::Range) {
             diag_.report({diag::Severity::Error, be->loc,
                           std::string(types_.display_name(lt)) + " is not comparable"});
@@ -713,7 +713,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
             return kInvalidTypeId;
         }
 
-        
+        // операторы порядка не определены для string (types.md §17)
         if ((be->op == BO::Lt || be->op == BO::Gt ||
              be->op == BO::Le || be->op == BO::Ge) && lt == kStringTy) {
             diag_.report({diag::Severity::Error, be->loc,
@@ -721,7 +721,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
             return kInvalidTypeId;
         }
 
-        
+        // eq/ne допустимы для: numeric, bool, string
         if (be->op == BO::Eq || be->op == BO::Ne) {
             if (!types_.is_numeric(lt) && lt != kBoolTy && lt != kStringTy) {
                 diag_.report({diag::Severity::Error, be->loc,
@@ -729,7 +729,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
                 return kInvalidTypeId;
             }
         } else {
-            
+            // lt/gt/le/ge: только числовые типы
             if (!types_.is_numeric(lt)) {
                 diag_.report({diag::Severity::Error, be->loc,
                               "ordering comparison requires numeric operands, got '" +
@@ -740,16 +740,16 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
         return kBoolTy;
     }
 
-    
+    // арифметика и остаток
     {
         TypeId lt = check_expr(be->left.get(), expected, scope);
         TypeId rt = check_expr(be->right.get(), lt != kInvalidTypeId ? lt : expected, scope);
         if (lt == kInvalidTypeId || rt == kInvalidTypeId) return kInvalidTypeId;
 
-        
+        // строка + строка (types.md §17)
         if (be->op == BO::Add && lt == kStringTy && rt == kStringTy) return kStringTy;
 
-        
+        // остаток: только целые
         if (be->op == BO::Rem) {
             if (!types_.is_signed_int(lt) && !types_.is_unsigned_int(lt)) {
                 diag_.report({diag::Severity::Error, be->loc,
@@ -776,7 +776,7 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
     }
 }
 
-
+// check_stmt
 
 void Sema::check_stmt(ast::Stmt* stmt, Scope* scope) {
     if (!stmt) return;
@@ -938,4 +938,4 @@ void Sema::check_stmt(ast::Stmt* stmt, Scope* scope) {
     }
 }
 
-} 
+} // namespace mycc::sema

@@ -1,3 +1,4 @@
+/* реализация DiagnosticEngine */
 #include "diagnostic.h"
 
 #include <ostream>
@@ -9,7 +10,7 @@ void DiagnosticEngine::report(Diagnostic d) {
         ++error_count_;
         if (error_count_ > kMaxErrors) {
             ++suppressed_count_;
-            return; 
+            return; // выбрасываем, упомянем в emit_all
         }
     }
     diags_.push_back(std::move(d));
@@ -35,4 +36,4 @@ void DiagnosticEngine::emit_all(std::ostream& out) const {
     }
 }
 
-} 
+} // namespace mycc::diag

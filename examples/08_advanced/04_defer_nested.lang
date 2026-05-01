@@ -1,0 +1,21 @@
+-- 04_defer_nested.lang
+-- Defer во вложенных блоках: при выходе из внутреннего блока выполняются
+-- его deferы, при выходе из внешнего — его. Точный сценарий из semantics.md §7.8.
+-- expect_stdout:
+-- A
+-- 3
+-- 2
+-- B
+-- 1
+-- expect_exit: 0
+
+fn main() -> int32 {
+    defer println("1");
+    {
+        defer println("2");
+        defer println("3");
+        println("A");
+    }
+    println("B");
+    return 0;
+}

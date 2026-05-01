@@ -1,4 +1,4 @@
-
+/*отслеживание перемещений range[T]. модель см. в move_check.h */
 #include "sema/move_check.h"
 #include "sema/type.h"
 
@@ -66,7 +66,7 @@ private:
         return ti_.get(TypeId{id}).kind == TypeKind::Range;
     }
 
-    
+    // снимок/восстановление/слияние для консервативного объединения веток
 
     using Snapshot = std::vector<std::vector<bool>>;
 
@@ -98,7 +98,7 @@ private:
         }
     }
 
-    
+    // обход выражений
 
     void walk_expr(Expr* e) {
         if (!e) return;
@@ -129,8 +129,8 @@ private:
         }
         case NodeKind::CallExpr: {
             auto* ce = ast_cast<CallExpr>(e);
-            
-            
+            // вызываемый — имя функции (IdentExpr или NamespaceAccess), не
+            // значение — пропускаем. аргументы — позиции значений
             if (ce->callee->kind != NodeKind::IdentExpr &&
                 ce->callee->kind != NodeKind::NamespaceAccess) {
                 walk_expr(ce->callee.get());
@@ -240,7 +240,7 @@ private:
             auto* fs = ast_cast<ForStmt>(s);
             walk_expr(fs->range_expr.get());
             push_scope();
-            
+            // переменная цикла — элементный тип (T), никогда не range
             declare(fs->var_name, false);
             walk_expr(fs->body.get());
             pop_scope();
@@ -287,11 +287,11 @@ void walk_decls(const std::vector<DeclPtr>& decls,
     }
 }
 
-} 
+} // namespace
 
 void check_moves(ast::Program& prog, const TypeInterner& ti,
                  diag::DiagnosticEngine& diag) {
     walk_decls(prog.decls, ti, diag);
 }
 
-} 
+} // namespace mycc::sema

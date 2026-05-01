@@ -1,0 +1,25 @@
+-- 02_pipe_partial.lang
+-- Pipe с частичным применением: a |> f(b, c) == f(a, b, c).
+-- expect_stdout:
+-- 7
+-- 3
+-- expect_exit: 0
+
+fn clamp(x: int32, lo: int32, hi: int32) -> int32 @pure {
+    return if x < lo {
+        lo
+    } else if x > hi {
+        hi
+    } else {
+        x
+    };
+}
+
+fn main() -> int32 {
+    var a: int32 = 100 |> clamp(0, 7);       -- clamp(100, 0, 7) == 7
+    println(a);
+
+    var b: int32 = -10 |> clamp(3, 99);      -- clamp(-10, 3, 99) == 3
+    println(b);
+    return 0;
+}

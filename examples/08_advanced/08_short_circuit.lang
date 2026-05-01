@@ -1,0 +1,30 @@
+-- 08_short_circuit.lang
+-- && и || используют короткое замыкание. Используем побочный эффект для
+-- проверки того, что правый операнд НЕ вычисляется.
+-- expect_stdout:
+-- left-side
+-- after-and
+-- left2
+-- after-or
+-- expect_exit: 0
+
+fn side_effect_true(label: string) -> bool @io {
+    println(label);
+    return true;
+}
+
+fn side_effect_false(label: string) -> bool @io {
+    println(label);
+    return false;
+}
+
+fn main() -> int32 {
+    -- false && X — X не вычисляется
+    var a: bool = side_effect_false("left-side") && side_effect_true("never-1");
+    println("after-and");
+
+    -- true || X — X не вычисляется
+    var b: bool = side_effect_true("left2") || side_effect_false("never-2");
+    println("after-or");
+    return 0;
+}

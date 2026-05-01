@@ -1,0 +1,30 @@
+-- 03_method_overloading.lang
+-- Перегрузка методов внутри одного impl-блока.
+-- expect_stdout:
+-- 5
+-- 9
+-- expect_exit: 0
+
+struct Counter {
+    value: int32,
+}
+
+impl Counter {
+    fn add(self: Counter, x: int32) -> Counter @pure {
+        return Counter{ value: self.value + x };
+    }
+
+    fn add(self: Counter, x: int32, y: int32) -> Counter @pure {
+        return Counter{ value: self.value + x + y };
+    }
+}
+
+fn main() -> int32 {
+    var c: Counter = Counter{ value: 0 };
+    var c1: Counter = c.add(5);
+    println(c1.value);       -- 5
+
+    var c2: Counter = c.add(4, 5);
+    println(c2.value);       -- 9
+    return 0;
+}
