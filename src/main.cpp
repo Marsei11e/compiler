@@ -2,6 +2,7 @@
 #include "diag/source.h"
 #include "ir/dump.h"
 #include "ir/lowering.h"
+#include "ir/opt/passes.h"
 #include "lexer/lexer.h"
 #include "lexer/token.h"
 #include "parser/ast_dump.h"
@@ -62,7 +63,7 @@ static int cmd_dump_ast(const std::string& path) {
     return diag.has_errors() ? 1 : 0;
 }
 
-static int cmd_dump_ir(const std::string& path) {
+static int cmd_dump_ir(const std::string& path, bool optimize) {
     mycc::diag::SourceManager sm;
     mycc::diag::FileId fid = sm.load_file(path);
     if (fid == mycc::diag::kInvalidFileId) {
@@ -84,6 +85,7 @@ static int cmd_dump_ir(const std::string& path) {
     if (!sema.analyze_pass2(prog)) { diag.emit_all(std::cerr); return 1; }
 
     auto mod = mycc::ir::lower_program(prog, sema, diag);
+    if (optimize) mycc::ir::opt::optimize_module(*mod);
     mycc::ir::dump_module(*mod, std::cout);
 
     diag.emit_all(std::cerr);
@@ -99,6 +101,7 @@ int main(int argc, char* argv[]) {
     bool dump_tokens = false;
     bool dump_ast    = false;
     bool dump_ir     = false;
+    bool optimize    = true;
     std::string source_file;
 
     for (int i = 1; i < argc; ++i) {
@@ -112,6 +115,10 @@ int main(int argc, char* argv[]) {
             dump_ast = true;
         } else if (arg == "--dump-ir") {
             dump_ir = true;
+        } else if (arg == "-O0" || arg == "--no-opt") {
+            optimize = false;
+        } else if (arg == "-O1" || arg == "-O2") {
+            optimize = true;
         } else {
             source_file = std::string(arg);
         }
@@ -120,7 +127,7 @@ int main(int argc, char* argv[]) {
     if (!source_file.empty()) {
         if (dump_tokens) return cmd_dump_tokens(source_file);
         if (dump_ast)    return cmd_dump_ast(source_file);
-        if (dump_ir)     return cmd_dump_ir(source_file);
+        if (dump_ir)     return cmd_dump_ir(source_file, optimize);
     }
 
     return EXIT_SUCCESS;

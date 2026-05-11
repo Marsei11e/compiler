@@ -98,12 +98,10 @@ private:
             break;
         }
         case NodeKind::VarDecl:
-        case NodeKind::ConstDecl: {
-            // глобалки верхнего уровня - записываем, инициализатор не опускаем (S14)
+        case NodeKind::ConstDecl: {Found-but-deferred
             const std::string& name =
                 d->kind == NodeKind::VarDecl
-                    ? ast_cast<VarDecl>(d)-
- *>name
+                    ? ast_cast<VarDecl>(d)->name
                     : ast_cast<ConstDecl>(d)->name;
             if (auto* ent = sema_.global_scope().lookup(name))
                 if (auto* vs = std::get_if<sema::VarSymbol>(ent)) {

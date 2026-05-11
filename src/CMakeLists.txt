@@ -25,6 +25,8 @@ set(SEMA_SOURCES
 set(IR_SOURCES
     ir/lowering.cpp
     ir/dump.cpp
+    ir/opt/const_fold.cpp
+    ir/opt/dce.cpp
 )
 
 add_executable(myc main.cpp ${DIAG_SOURCES} ${LEXER_SOURCES} ${PARSER_SOURCES} ${SEMA_SOURCES} ${IR_SOURCES})
@@ -168,4 +170,16 @@ add_executable(mycc_test_s14
 target_include_directories(mycc_test_s14 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s14 PRIVATE -Wall -Wextra)
 add_test(NAME s14 COMMAND mycc_test_s14 ${TESTS_DIR})
+
+add_executable(mycc_test_s15
+    ../tests/unit/test_s15.cpp
+    ${DIAG_SOURCES}
+    ${LEXER_SOURCES}
+    ${PARSER_SOURCES}
+    ${SEMA_SOURCES}
+    ${IR_SOURCES}
+)
+target_include_directories(mycc_test_s15 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s15 PRIVATE -Wall -Wextra)
+add_test(NAME s15 COMMAND mycc_test_s15 ${TESTS_DIR})
 
