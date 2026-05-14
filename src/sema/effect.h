@@ -8,7 +8,7 @@
 без аннотаций - тело функции не проверяется*/
 #pragma once
 
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 #include "parser/ast.h"
 #include "sema/scope.h"
 #include "sema/symbol.h"

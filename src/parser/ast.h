@@ -2,7 +2,7 @@
  */
 #pragma once
 
-#include "diag/source.h"
+#include "diag/_pod.h"
 #include "lexer/token.h"
 
 #include <cstdint>

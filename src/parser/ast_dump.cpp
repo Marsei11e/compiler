@@ -3,6 +3,8 @@
 #include <ostream>
 #include <string>
 
+import mycc.diag;
+
 namespace mycc::ast {
 
 // вспомогалки

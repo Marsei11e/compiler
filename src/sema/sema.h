@@ -4,8 +4,7 @@
  */
 #pragma once
 
-#include "diag/diagnostic.h"
-#include "diag/source.h"
+#include "diag/_pod.h"
 #include "parser/ast.h"
 #include "sema/scope.h"
 #include "sema/type.h"

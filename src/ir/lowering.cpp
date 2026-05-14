@@ -1,7 +1,6 @@
 /* АСТ -> IR - см. lowering.h */
 #include "ir/lowering.h"
 
-#include "diag/diagnostic.h"
 #include "ir/ir.h"
 #include "parser/ast.h"
 #include "sema/sema.h"
@@ -15,6 +14,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+import mycc.diag;
 
 namespace mycc::ir {
 
@@ -98,7 +99,7 @@ private:
             break;
         }
         case NodeKind::VarDecl:
-        case NodeKind::ConstDecl: {Found-but-deferred
+        case NodeKind::ConstDecl: {
             const std::string& name =
                 d->kind == NodeKind::VarDecl
                     ? ast_cast<VarDecl>(d)->name

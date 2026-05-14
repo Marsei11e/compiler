@@ -2,7 +2,7 @@
 #pragma once
 
 #include "parser/ast.h"
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 #include "lexer/token.h"
 
 #include <span>

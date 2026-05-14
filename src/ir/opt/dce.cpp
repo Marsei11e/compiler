@@ -7,6 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
+import mycc.diag;
+
 namespace mycc::ir::opt {
 
 namespace {

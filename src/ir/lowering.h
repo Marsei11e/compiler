@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 #include "ir/ir.h"
 #include "parser/ast.h"
 #include "sema/sema.h"

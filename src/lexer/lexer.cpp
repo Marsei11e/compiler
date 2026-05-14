@@ -6,6 +6,8 @@
 #include <string>
 #include <unordered_map>
 
+import mycc.diag;
+
 namespace mycc::lex {
 
 // таблица ключевых слов

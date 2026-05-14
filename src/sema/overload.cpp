@@ -4,6 +4,8 @@
 
 #include <cassert>
 
+import mycc.diag;
+
 namespace mycc::sema {
 
 using namespace ast;

@@ -15,6 +15,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+import mycc.diag;
+
 namespace mycc::sema {
 
 using namespace ast;

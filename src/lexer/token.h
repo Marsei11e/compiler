@@ -1,6 +1,6 @@
 #pragma once
 
-#include "diag/source.h"
+#include "diag/_pod.h"
 
 #include <cstdint>
 #include <string>

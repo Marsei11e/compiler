@@ -1,5 +1,3 @@
-#include "diag/diagnostic.h"
-#include "diag/source.h"
 #include "ir/dump.h"
 #include "ir/lowering.h"
 #include "ir/opt/passes.h"
@@ -13,6 +11,8 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+
+import mycc.diag;
 
 static constexpr std::string_view kVersion = "myc v0.0";
 

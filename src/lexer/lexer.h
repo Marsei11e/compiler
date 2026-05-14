@@ -1,7 +1,7 @@
 #pragma once
 
 #include "token.h"
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 
 #include <string_view>
 #include <vector>

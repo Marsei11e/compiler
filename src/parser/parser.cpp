@@ -1,8 +1,9 @@
 #include "parser/parser.h"
-#include "diag/diagnostic.h"
 
 #include <cassert>
 #include <string>
+
+import mycc.diag;
 
 namespace mycc::parse {
 

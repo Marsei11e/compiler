@@ -11,6 +11,8 @@
 #include "lexer/token.h"
 #include "parser/ast.h"
 
+import mycc.diag;
+
 namespace mycc::sema {
 
 using namespace ast;

@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "diag/source.h"
+#include "diag/_pod.h"
 #include "sema/type.h"
 
 #include <cstdint>

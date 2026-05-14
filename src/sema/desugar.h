@@ -6,7 +6,7 @@ a |> f(b, c)    ==>  f(a, b, c)
 PipeExpr остается на месте, но проход 2 его пропустит*/
 #pragma once
 
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 #include "parser/ast.h"
 
 namespace mycc::sema {

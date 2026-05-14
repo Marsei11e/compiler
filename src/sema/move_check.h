@@ -7,7 +7,7 @@
 если переменная потреблена хотя бы в одной ветке - считается потребленной*/
 #pragma once
 
-#include "diag/diagnostic.h"
+#include "diag/_pod.h"
 #include "parser/ast.h"
 
 namespace mycc::sema {

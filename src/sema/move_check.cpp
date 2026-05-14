@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+import mycc.diag;
+
 namespace mycc::sema {
 
 using namespace ast;

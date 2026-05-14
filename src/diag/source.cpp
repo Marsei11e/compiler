@@ -1,5 +1,5 @@
 /* реализация SourceManager */
-#include "source.h"
+#include "diag/_pod.h"
 
 #include <algorithm>
 #include <fstream>
@@ -9,7 +9,7 @@ namespace mycc::diag {
 
 std::vector<uint32_t> SourceManager::build_line_offsets(std::string_view src) {
     std::vector<uint32_t> offsets;
-    offsets.push_back(0); // строка 1 начинается с нуля
+    offsets.push_back(0);  // строка 1 начинается с нуля
     for (uint32_t i = 0; i < static_cast<uint32_t>(src.size()); ++i) {
         if (src[i] == '\n') {
             offsets.push_back(i + 1);

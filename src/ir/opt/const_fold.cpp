@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <unordered_map>
 
+import mycc.diag;
+
 namespace mycc::ir::opt {
 
 namespace {
