@@ -1,12 +1,28 @@
-#pragma once
+module;
 
-#include "token.h"
-#include "diag/_pod.h"
+#include "lexer/_pod.h"
 
+#include <cstdint>
+#include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
-namespace mycc::lex {
+export module mycc.lexer;
+
+import mycc.diag;
+
+export namespace mycc::lex {
+
+using ::mycc::lex::TokenKind;
+using ::mycc::lex::IntSuffix;
+using ::mycc::lex::IntLiteralData;
+using ::mycc::lex::FloatLiteralData;
+using ::mycc::lex::TokenLiteral;
+using ::mycc::lex::Token;
+
+// читаемое имя токена, используется при --dump-tokens и в диагностике
+std::string_view token_kind_name(TokenKind k);
 
 class Lexer {
 public:
@@ -51,4 +67,4 @@ private:
     void error(diag::SourceLocation loc, std::string msg);
 };
 
-} // namespace mycc::lex
+} // export namespace mycc::lex

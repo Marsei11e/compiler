@@ -4,6 +4,7 @@
 #include <string>
 
 import mycc.diag;
+import mycc.lexer;
 
 namespace mycc::ast {
 

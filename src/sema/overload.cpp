@@ -1,10 +1,10 @@
 /* реализация разрешения перегрузки - семантика §13.2 */
 #include "sema/overload.h"
-#include "lexer/token.h"
 
 #include <cassert>
 
 import mycc.diag;
+import mycc.lexer;
 
 namespace mycc::sema {
 

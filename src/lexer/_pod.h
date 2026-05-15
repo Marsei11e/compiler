@@ -31,7 +31,7 @@ enum class TokenKind {
     // конструкторы типов
     Array, Range,
 
-    // встроенные типы 
+    // встроенные типы
     Int8, Int16, Int32, Int64,
     Uint8, Uint16, Uint32, Uint64,
     Float32, Float64,
@@ -45,7 +45,7 @@ enum class TokenKind {
     AtPure, // @pure
     AtIo, // @io
     AtPanics, // @panics
-    AtUnknown, // @<что угодно еще> — лексер ругается, парсер может отвергнуть
+    AtUnknown, // @<что угодно еще> - лексер ругается, парсер может отвергнуть
 
     // многосимвольные операторы
     EqEq, // ==
@@ -87,9 +87,6 @@ enum class TokenKind {
     Error,
 };
 
-// читаемое имя токена, используется при --dump-tokens и в диагностике
-std::string_view token_kind_name(TokenKind k);
-
 // данные литеральных значений
 
 enum class IntSuffix { None, U, L, UL };
@@ -102,10 +99,10 @@ struct IntLiteralData {
 
 struct FloatLiteralData {
     double value{0.0};
-    bool is_f32{false}; // true если есть суффикс 'f' — это float32
+    bool is_f32{false}; // true если есть суффикс 'f' - это float32
 };
 
-// хранит декодированное значение, для нелитеральных токенов — monostate
+// хранит декодированное значение, для нелитеральных токенов - monostate
 using TokenLiteral = std::variant<std::monostate, IntLiteralData, FloatLiteralData, std::string>;
 
 // токен

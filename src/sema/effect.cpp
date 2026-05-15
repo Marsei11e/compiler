@@ -9,13 +9,12 @@
 #include "sema/effect.h"
 #include "sema/overload.h"
 
-#include "lexer/token.h"
-
 #include <string>
 #include <variant>
 #include <vector>
 
 import mycc.diag;
+import mycc.lexer;
 
 namespace mycc::sema {
 

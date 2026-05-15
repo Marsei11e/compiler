@@ -2,13 +2,13 @@
 #include "sema/sema.h"
 #include "sema/overload.h"
 
-#include "lexer/token.h"
 #include "parser/ast.h"
 
 #include <cassert>
 #include <unordered_set>
 
 import mycc.diag;
+import mycc.lexer;
 
 namespace mycc::sema {
 

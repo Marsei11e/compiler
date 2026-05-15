@@ -2,7 +2,6 @@
 #include "sema/move_check.h"
 #include "sema/type.h"
 
-#include "lexer/token.h"
 #include "parser/ast.h"
 
 #include <string>
@@ -10,6 +9,7 @@
 #include <vector>
 
 import mycc.diag;
+import mycc.lexer;
 
 namespace mycc::sema {
 

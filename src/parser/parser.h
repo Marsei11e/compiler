@@ -3,7 +3,7 @@
 
 #include "parser/ast.h"
 #include "diag/_pod.h"
-#include "lexer/token.h"
+#include "lexer/_pod.h"
 
 #include <span>
 #include <vector>

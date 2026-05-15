@@ -3,7 +3,7 @@
 #pragma once
 
 #include "diag/_pod.h"
-#include "lexer/token.h"
+#include "lexer/_pod.h"
 
 #include <cstdint>
 #include <memory>

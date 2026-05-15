@@ -1,10 +1,17 @@
-#include "lexer.h"
+module;
 
 #include <cassert>
+#include <cctype>
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
+#include <vector>
+
+module mycc.lexer;
 
 import mycc.diag;
 
@@ -210,7 +217,7 @@ Token Lexer::lex_number(std::size_t start, diag::SourceLocation start_loc) {
         while (!at_end() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
     }
 
-    // может быть вещественным — проверяем '.' с цифрой или экспоненту 'e'/'E'
+    // может быть вещественным -  проверяем '.' с цифрой или экспоненту 'e'/'E'
     bool is_float = false;
     if (!is_hex) {
         if (peek() == '.' && std::isdigit(static_cast<unsigned char>(peek(1)))) {
