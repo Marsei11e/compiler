@@ -1,6 +1,6 @@
 #pragma once
 
-#include "parser/ast.h"
+#include "parser/_pod.h"
 
 #include <cassert>
 #include <cstddef>

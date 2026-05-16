@@ -1,12 +1,11 @@
 /*раскрытие оператора |>. правила перезаписи см. в desugar.h */
 #include "sema/desugar.h"
 
-#include "parser/ast.h"
-
 #include <utility>
 #include <vector>
 
 import mycc.diag;
+import mycc.parser;
 
 namespace mycc::sema {
 

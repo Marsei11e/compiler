@@ -1,5 +1,3 @@
-/* определения узлов АСТ
- */
 #pragma once
 
 #include "diag/_pod.h"
@@ -161,7 +159,7 @@ struct FnDecl : Decl {
     std::vector<ParamDecl>   params;
     TypePtr                  return_type;
     std::vector<EffectKind>  effects;
-    ExprPtr                  body; // BlockExpr (заглушка в S4, заполняется в S5-S6)
+    ExprPtr                  body; // BlockExpr
     FnDecl(diag::SourceLocation l, std::string n,
            std::vector<ParamDecl> p, TypePtr rt,
            std::vector<EffectKind> eff, ExprPtr b)
@@ -280,7 +278,6 @@ struct BlockStmt : Stmt {
 // выражения
 
 struct Expr : Node {
-    // заполняется sema (S7+), 0 = неразрешен
     uint32_t resolved_type_id{0};
     using Node::Node;
 };

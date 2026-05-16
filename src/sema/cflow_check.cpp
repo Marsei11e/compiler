@@ -8,10 +8,10 @@
 -  блок дивергирует если одна из инструкций дивергирует до конца.
  - if-инструкция дивергирует если обе ветки дивергируют (else обязателен для распространения)*/
 #include "sema/cflow_check.h"
-#include "parser/ast.h"
 
 import mycc.diag;
 import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::sema {
 

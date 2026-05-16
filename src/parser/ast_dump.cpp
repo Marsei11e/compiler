@@ -1,7 +1,12 @@
 /* реализация AstDumper - выводит дерево с отступами */
-#include "ast_dump.h"
+module;
+
+#include <cstddef>
 #include <ostream>
 #include <string>
+#include <vector>
+
+module mycc.parser;
 
 import mycc.diag;
 import mycc.lexer;

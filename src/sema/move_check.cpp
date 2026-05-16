@@ -2,14 +2,13 @@
 #include "sema/move_check.h"
 #include "sema/type.h"
 
-#include "parser/ast.h"
-
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 import mycc.diag;
 import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::sema {
 

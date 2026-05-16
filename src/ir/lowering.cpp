@@ -2,7 +2,6 @@
 #include "ir/lowering.h"
 
 #include "ir/ir.h"
-#include "parser/ast.h"
 #include "sema/sema.h"
 #include "sema/scope.h"
 #include "sema/symbol.h"
@@ -16,6 +15,8 @@
 #include <vector>
 
 import mycc.diag;
+import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::ir {
 

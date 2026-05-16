@@ -7,7 +7,7 @@ PipeExpr остается на месте, но проход 2 его пропу
 #pragma once
 
 #include "diag/_pod.h"
-#include "parser/ast.h"
+#include "parser/_pod.h"
 
 namespace mycc::sema {
 

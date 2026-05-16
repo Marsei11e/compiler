@@ -2,7 +2,7 @@
  * реализует алгоритм: точное совпадение / адаптация литерала / неоднозначность */
 #pragma once
 
-#include "parser/ast.h"
+#include "parser/_pod.h"
 #include "sema/symbol.h"
 #include "sema/type.h"
 

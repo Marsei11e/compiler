@@ -1,14 +1,21 @@
-/* рекурсивно-нисходящий парсер*/
-#pragma once
+module;
 
-#include "parser/ast.h"
-#include "diag/_pod.h"
-#include "lexer/_pod.h"
-
+#include <cstddef>
+#include <memory>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
-namespace mycc::parse {
+export module mycc.parser;
+
+export import :ast;
+export import :dump;
+
+import mycc.diag;
+import mycc.lexer;
+
+export namespace mycc::parse {
 
 /* преобразует плоский поток токенов в АСТ программы */
 class Parser {
@@ -73,4 +80,4 @@ private:
                               ast::ExprPtr lhs, ast::ExprPtr rhs);
 };
 
-} // namespace mycc::parse
+} // export namespace mycc::parse

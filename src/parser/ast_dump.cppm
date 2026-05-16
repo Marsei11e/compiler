@@ -1,11 +1,16 @@
-/* рекурсивный принтер для узлов АСТ */
-#pragma once
+module;
 
-#include "ast.h"
+#include <cstddef>
 #include <iosfwd>
+#include <vector>
 
-namespace mycc::ast {
+export module mycc.parser:dump;
 
+import :ast;
+
+export namespace mycc::ast {
+
+/* рекурсивный принтер для узлов АСТ */
 class AstDumper {
 public:
     explicit AstDumper(std::ostream& out, int indent_step = 2)
@@ -28,4 +33,4 @@ private:
     void dump_effects(const std::vector<EffectKind>& eff);
 };
 
-} // namespace mycc::ast
+} // export namespace mycc::ast

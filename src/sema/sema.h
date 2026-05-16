@@ -5,7 +5,7 @@
 #pragma once
 
 #include "diag/_pod.h"
-#include "parser/ast.h"
+#include "parser/_pod.h"
 #include "sema/scope.h"
 #include "sema/type.h"
 

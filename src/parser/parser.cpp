@@ -1,7 +1,17 @@
-#include "parser/parser.h"
+module;
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <span>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <variant>
+#include <vector>
+
+module mycc.parser;
 
 import mycc.diag;
 import mycc.lexer;
@@ -234,7 +244,7 @@ std::unique_ptr<VarDecl> Parser::parse_var_decl() {
     }
 
     expect(TokenKind::Eq, "expected '='");
-    auto init = parse_expr(); // S5: настоящий разбор выражений
+    auto init = parse_expr(); // настоящий разбор выражений
     expect(TokenKind::Semi, "expected ';'");
 
     return std::make_unique<VarDecl>(loc, std::move(name), std::move(type_ann), std::move(init));
@@ -257,7 +267,7 @@ std::unique_ptr<ConstDecl> Parser::parse_const_decl() {
     }
 
     expect(TokenKind::Eq, "expected '='");
-    auto init = parse_expr(); // S5: настоящий разбор выражений
+    auto init = parse_expr(); // настоящий разбор выражений
     expect(TokenKind::Semi, "expected ';'");
 
     return std::make_unique<ConstDecl>(loc, std::move(name), std::move(type_ann), std::move(init));
@@ -425,7 +435,7 @@ ExprPtr Parser::parse_expr(int min_bp) {
 
         lhs = build_binary(loc, op_kind, std::move(lhs), std::move(rhs));
 
-        // `..` не ассоциативен — после a..b запрещаем цепочку ..c
+        // `..` не ассоциативен - после a..b запрещаем цепочку ..c
         if (is_dotdot) {
             if (check(TokenKind::DotDot)) {
                 error(peek(), "'..' is not associative; parenthesise sub-ranges");

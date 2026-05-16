@@ -6,8 +6,6 @@
 #include "sema/move_check.h"
 #include "sema/overload.h"
 
-#include "parser/ast.h"
-
 #include <cassert>
 #include <optional>
 #include <string>
@@ -16,6 +14,7 @@
 
 import mycc.diag;
 import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::sema {
 
