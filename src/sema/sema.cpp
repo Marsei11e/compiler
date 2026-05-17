@@ -1,9 +1,13 @@
 /* семантика проход 1 - сбор объявлений верхнего уровня и структурные проверки */
-#include "sema/sema.h"
-#include "sema/overload.h"
+#include "sema/_pod.h"
 
 #include <cassert>
+#include <initializer_list>
+#include <memory>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 import mycc.diag;
 import mycc.lexer;

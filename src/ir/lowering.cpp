@@ -2,10 +2,6 @@
 #include "ir/lowering.h"
 
 #include "ir/ir.h"
-#include "sema/sema.h"
-#include "sema/scope.h"
-#include "sema/symbol.h"
-#include "sema/type.h"
 
 #include <cassert>
 #include <memory>

@@ -1,10 +1,15 @@
 /* реализация разрешения перегрузки - семантика §13.2 */
-#include "sema/overload.h"
+#include "sema/_pod.h"
 
 #include <cassert>
+#include <string>
+#include <span>
+#include <utility>
+#include <vector>
 
 import mycc.diag;
 import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::sema {
 

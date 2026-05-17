@@ -7,7 +7,7 @@
 #pragma once
 
 #include "diag/_pod.h"
-#include "sema/type.h"
+#include "sema/_pod.h"
 
 #include <cstdint>
 #include <memory>

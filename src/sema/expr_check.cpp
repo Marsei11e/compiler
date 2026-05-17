@@ -1,16 +1,14 @@
 /* семантика проход 2 - проверка типов выражений и разрешение имен в телах функций */
-#include "sema/sema.h"
-#include "sema/cflow_check.h"
-#include "sema/desugar.h"
-#include "sema/effect.h"
-#include "sema/move_check.h"
-#include "sema/overload.h"
+#include "sema/_pod.h"
 
 #include <cassert>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 import mycc.diag;
 import mycc.lexer;
@@ -192,7 +190,6 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         if (auto* vs = std::get_if<VarSymbol>(ent)) {
             ty = vs->type;
         } else {
-            // OverloadSet / StructSymbol / NamespaceSymbol — не значение, разбирается в S10
             ty = kInvalidTypeId;
         }
         break;
@@ -449,7 +446,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
             ty = kInvalidTypeId; break;
         }
 
-        // строим карту имя поля → тип
+        // строим карту имя поля -> тип
         std::unordered_map<std::string, TypeId> field_map;
         for (auto& f : ss->fields)
             field_map[f.name] = f.type;
@@ -566,7 +563,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         auto result = resolve_call(*overloads, arg_types, arg_kinds, types_);
         switch (result.status) {
         case OverloadStatus::Resolved:
-            // перепроверяем аргументы с уточненными типами параметров — правим resolved_type_id у литералов
+            // перепроверяем аргументы с уточненными типами параметров - правим resolved_type_id у литералов
             for (size_t i = 0; i < ce->args.size(); ++i)
                 check_expr(ce->args[i].get(), result.fn->params[i].type, scope);
             ty = result.fn->return_ty;

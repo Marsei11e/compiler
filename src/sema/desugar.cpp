@@ -1,6 +1,7 @@
-/*раскрытие оператора |>. правила перезаписи см. в desugar.h */
-#include "sema/desugar.h"
+/* раскрытие оператора |>. правила перезаписи см. в интерфейсе */
+#include "sema/_pod.h"
 
+#include <memory>
 #include <utility>
 #include <vector>
 

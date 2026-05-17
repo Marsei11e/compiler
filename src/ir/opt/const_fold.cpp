@@ -1,8 +1,6 @@
 // constant folding: см. semantics §15.1
 #include "ir/opt/passes.h"
 
-#include "sema/type.h"
-
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>

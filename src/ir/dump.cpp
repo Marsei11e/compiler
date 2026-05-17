@@ -1,8 +1,6 @@
 /* текстовый принтер IR — codegen.md §2.3 */
 #include "ir/dump.h"
 
-#include "sema/type.h"
-
 #include <ostream>
 #include <string>
 

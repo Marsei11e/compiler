@@ -9,7 +9,7 @@
 #include "diag/_pod.h"
 #include "ir/ir.h"
 #include "parser/_pod.h"
-#include "sema/sema.h"
+#include "sema/_pod.h"
 
 #include <memory>
 

@@ -1,7 +1,6 @@
 #include "ir/dump.h"
 #include "ir/lowering.h"
 #include "ir/opt/passes.h"
-#include "sema/sema.h"
 
 #include <cstdlib>
 #include <iostream>

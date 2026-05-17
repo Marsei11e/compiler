@@ -1,9 +1,11 @@
-/*отслеживание перемещений range[T]. модель см. в move_check.h */
-#include "sema/move_check.h"
-#include "sema/type.h"
+/* отслеживание перемещений range[T]. модель см. в интерфейсе move_check */
+#include "sema/_pod.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 import mycc.diag;
@@ -130,8 +132,7 @@ private:
         }
         case NodeKind::CallExpr: {
             auto* ce = ast_cast<CallExpr>(e);
-            // вызываемый — имя функции (IdentExpr или NamespaceAccess), не
-            // значение — пропускаем. аргументы — позиции значений
+            // вызываемый -имя функции (IdentExpr или NamespaceAccess), не  значение - пропускаем. аргументы - позиции значений
             if (ce->callee->kind != NodeKind::IdentExpr &&
                 ce->callee->kind != NodeKind::NamespaceAccess) {
                 walk_expr(ce->callee.get());

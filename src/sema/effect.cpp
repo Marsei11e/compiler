@@ -5,16 +5,19 @@
 индексирование массива a[i] -> @panics
 вызов функции с аннотацией E ->E
 вызов неаннотированной пользовательской функции -> неизвестно
-встроенные (FnSymbol::decl == nullptr) всегда несут явные эффекты, никогда не считаются "неаннотированными"*/
-#include "sema/effect.h"
-#include "sema/overload.h"
+встроенные (FnSymbol::decl == nullptr) всегда несут явные эффекты, никогда не считаются "неаннотированными"
+ */
+#include "sema/_pod.h"
 
+#include <cstdint>
 #include <string>
-#include <variant>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 import mycc.diag;
 import mycc.lexer;
+import mycc.parser;
 
 namespace mycc::sema {
 
@@ -52,7 +55,7 @@ public:
                     (types_.is_signed_int(lt) || types_.is_unsigned_int(lt))) {
                     report_int_division(e->loc);
                 }
-                // float / (и невозможный float %) — чистые по A.1
+                // float / (и невозможный float %) - чистые по A.1
             }
             break;
         }
@@ -230,7 +233,7 @@ private:
 
     void report_unknown_call(diag::SourceLocation loc, const std::string& callee) {
         if (allow_.is_pure) {
-            // @pure → жесткая ошибка на каждом месте, без дросселирования (§12.3)
+            // @pure -> жесткая ошибка на каждом месте, без дросселирования (§12.3)
             diag_.report({diag::Severity::Error, loc,
                 "@pure function '" + fn_name_ +
                 "' cannot call unannotated function '" + callee + "'"});
@@ -248,8 +251,7 @@ private:
                               const std::string& callee,
                               const FnSymbol* fn) {
         if (!fn) return;
-        // встроенные (decl == nullptr) всегда несут явные эффекты,
-        // никогда не считаются неаннотированными даже с пустым набором
+        // встроенные (decl == nullptr) всегда несут явные эффекты, никогда не считаются неаннотированными даже с пустым набором
         if (fn->effects.empty() && fn->decl != nullptr) {
             report_unknown_call(loc, callee);
             return;
@@ -345,7 +347,7 @@ void walk_fn(FnDecl* fn,
              const TypeInterner& types,
              diag::DiagnosticEngine& diag) {
     if (!fn->body) return;
-    if (fn->effects.empty()) return; // без аннотации → не проверяем (§12.5)
+    if (fn->effects.empty()) return; // без аннотации -> не проверяем (§12.5)
 
     AllowSet allow;
     for (auto e : fn->effects) {
