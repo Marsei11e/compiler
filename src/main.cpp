@@ -1,15 +1,14 @@
-#include "ir/dump.h"
-#include "ir/lowering.h"
-#include "ir/opt/passes.h"
-
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 
 import mycc.diag;
 import mycc.lexer;
 import mycc.parser;
+import mycc.sema;
+import mycc.ir;
 
 static constexpr std::string_view kVersion = "myc v0.0";
 

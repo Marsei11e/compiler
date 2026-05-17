@@ -1,7 +1,5 @@
-/* АСТ -> IR - см. lowering.h */
-#include "ir/lowering.h"
-
-#include "ir/ir.h"
+/* АСТ -> IR */
+#include "ir/_pod.h"
 
 #include <cassert>
 #include <memory>
@@ -13,6 +11,7 @@
 import mycc.diag;
 import mycc.lexer;
 import mycc.parser;
+import mycc.sema;
 
 namespace mycc::ir {
 
@@ -127,13 +126,13 @@ private:
             : tid(static_cast<uint32_t>(TypeKind::Hollow));
 
         // сбрасываем состояние функции
-        fn_                 = func.get();
+        fn_ = func.get();
         named_slots_.clear();
         defer_scopes_.clear();
         loop_stack_.clear();
-        next_temp_id_       = 0;
-        next_label_id_      = 0;
-        next_defer_id_      = 0;
+        next_temp_id_  = 0;
+        next_label_id_= 0;
+        next_defer_id_ = 0;
 
         for (auto& p : fn->params) {
             FnParam fp;
@@ -359,7 +358,7 @@ private:
             auto* ie = ast_cast<IdentExpr>(tgt);
             auto it = named_slots_.find(ie->name);
             if (it == named_slots_.end()) {
-                // глобальная переменная верхнего уровня — Store в глобал
+                // глобальная переменная верхнего уровня - Store в глобал
                 Inst st;
                 st.op = Op::Store;
                 st.type = vt;
@@ -382,8 +381,7 @@ private:
             // вычисляем адрес поля, потом сохраняем
             auto* fa = ast_cast<FieldAccess>(tgt);
             Operand recv_ptr = lower_lvalue(fa->receiver.get());
-            uint32_t fi = struct_field_index(tid_of(fa->receiver.get()),
-                                             fa->field_name);
+            uint32_t fi = struct_field_index(tid_of(fa->receiver.get()),  fa->field_name);
             Operand fld = new_temp(vt);
             Inst gf;
             gf.op = Op::GetField;
@@ -442,8 +440,7 @@ private:
         case NodeKind::FieldAccess: {
             auto* fa = ast_cast<FieldAccess>(e);
             Operand recv = lower_lvalue(fa->receiver.get());
-            uint32_t fi = struct_field_index(tid_of(fa->receiver.get()),
-                                             fa->field_name);
+            uint32_t fi = struct_field_index(tid_of(fa->receiver.get()), fa->field_name);
             Operand res = new_temp(tid_of(e));
             Inst gf;
             gf.op = Op::GetField;
@@ -549,7 +546,7 @@ private:
     }
 
     void lower_for(ForStmt* fs) {
-        // хранилище переменной цикла — .slot ниже.
+        // хранилище переменной цикла - .slot ниже.
         // для range: пара cur/end как в codegen.md §13.2
         TypeId iter_ty = tid_of(fs->range_expr.get());
         if (iter_ty == kInvalidTypeId) return;
@@ -585,7 +582,7 @@ private:
             a.loc = fs->loc; emit(std::move(a));
         }
 
-        // если выражение диапазона — литерал from..to, берем границы напрямую;
+        // если выражение диапазона - литерал from..to, берем границы напрямую;
         // иначе читаем cur/end через GetField из значения range
         if (fs->range_expr->kind == NodeKind::RangeExpr) {
             auto* re = ast_cast<RangeExpr>(fs->range_expr.get());
@@ -689,8 +686,7 @@ private:
         std::string end_l  = fresh_label("for.end");
 
         TypeId i64_ty = tid(static_cast<uint32_t>(TypeKind::I64));
-        Operand idx_slot = named("for.idx." + std::to_string(next_label_id_++),
-                                 i64_ty);
+        Operand idx_slot = named("for.idx." + std::to_string(next_label_id_++), i64_ty);
         {
             Inst a; a.op = Op::Alloca; a.type = i64_ty; a.result = idx_slot;
             a.loc = fs->loc; emit(std::move(a));
@@ -807,8 +803,7 @@ private:
         start_block(body_l);
         // опускаем отложенные инструкции в этот блок
         lower_stmt(ds->body.get());
-        // defer выполняется "до конца" — закрываем синтетическим Jmp на
-        // маркер продолжения (codegen заменит его при раскрытии DeferEmit)
+        // defer выполняется до конца - закрываем синтетическим Jmp на маркер продолжения (codegen заменит его при раскрытии DeferEmit)
         if (!block_terminated()) {
             Inst j; j.op = Op::Jmp; j.then_label = "defer.return." + std::to_string(id);
             j.loc = ds->loc;
@@ -822,9 +817,9 @@ private:
         // нам нужно вставить Jmp из saved_block в resume_l, потом начать resume_l
         {
             Inst j; j.op = Op::Jmp; j.then_label = resume_l; j.loc = ds->loc;
-            // вставляем в saved_block — он ещё не терминирован; просто добавляем Jmp
+            // вставляем в saved_block - он ещё не терминирован; просто добавляем Jmp
             auto& sb = fn_->blocks[saved_block];
-            // sb может уже иметь инструкции и ещё не закрыт — добавляем Jmp
+            // sb может уже иметь инструкции и ещё не закрыт - добавляем Jmp
             sb.insts.push_back(std::move(j));
         }
         start_block(resume_l);
@@ -936,8 +931,7 @@ private:
     Operand lower_field_access(FieldAccess* fa) {
         TypeId fty = tid_of(fa);
         Operand recv_addr = lower_lvalue(fa->receiver.get());
-        uint32_t fi = struct_field_index(tid_of(fa->receiver.get()),
-                                         fa->field_name);
+        uint32_t fi = struct_field_index(tid_of(fa->receiver.get()), fa->field_name);
         Operand fld = new_temp(fty);
         Inst gf; gf.op = Op::GetField; gf.type = fty; gf.result = fld;
         gf.field_index = fi; gf.args.push_back(recv_addr); gf.loc = fa->loc;
@@ -1366,10 +1360,10 @@ private:
     }
 
     // состояние
-    sema::Sema&             sema_;
+    sema::Sema&  sema_;
     diag::DiagnosticEngine& diag_;
-    Module*                 mod_{nullptr};
-    Function*               fn_{nullptr};
+    Module* mod_{nullptr};
+    Function* fn_{nullptr};
 
     std::unordered_map<std::string, Operand> named_slots_;
     uint32_t next_temp_id_{0};
@@ -1388,9 +1382,7 @@ private:
 
 } // namespace
 
-std::unique_ptr<Module> lower_program(ast::Program& prog,
-                                      sema::Sema& sema,
-                                      diag::DiagnosticEngine& diag) {
+std::unique_ptr<Module> lower_program(ast::Program& prog,  sema::Sema& sema,  diag::DiagnosticEngine& diag) {
     Lowerer L(sema, diag);
     return L.run(prog);
 }

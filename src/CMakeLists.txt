@@ -51,15 +51,22 @@ target_include_directories(myc_sema PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(myc_sema PUBLIC cxx_std_23)
 target_link_libraries(myc_sema PUBLIC myc_parser myc_lexer myc_diag)
 
-set(IR_SOURCES
-    ir/lowering.cpp
-    ir/dump.cpp
-    ir/opt/const_fold.cpp
-    ir/opt/dce.cpp
+add_library(myc_ir STATIC)
+target_sources(myc_ir
+    PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES
+        ir/ir.cppm
+    PRIVATE
+        ir/lowering.cpp
+        ir/dump.cpp
+        ir/opt/const_fold.cpp
+        ir/opt/dce.cpp
 )
+target_include_directories(myc_ir PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(myc_ir PUBLIC cxx_std_23)
+target_link_libraries(myc_ir PUBLIC myc_sema myc_parser myc_lexer myc_diag)
 
-add_executable(myc main.cpp ${IR_SOURCES})
-target_link_libraries(myc PRIVATE mycrt myc_sema myc_parser)
+add_executable(myc main.cpp)
+target_link_libraries(myc PRIVATE mycrt myc_ir myc_sema myc_parser)
 target_include_directories(myc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -161,18 +168,16 @@ add_test(NAME s13 COMMAND mycc_test_s13 ${TESTS_DIR})
 
 add_executable(mycc_test_s14
     ../tests/unit/test_s14.cpp
-    ${IR_SOURCES}
 )
-target_link_libraries(mycc_test_s14 PRIVATE myc_sema myc_parser)
+target_link_libraries(mycc_test_s14 PRIVATE myc_ir myc_sema myc_parser)
 target_include_directories(mycc_test_s14 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s14 PRIVATE -Wall -Wextra)
 add_test(NAME s14 COMMAND mycc_test_s14 ${TESTS_DIR})
 
 add_executable(mycc_test_s15
     ../tests/unit/test_s15.cpp
-    ${IR_SOURCES}
 )
-target_link_libraries(mycc_test_s15 PRIVATE myc_sema myc_parser)
+target_link_libraries(mycc_test_s15 PRIVATE myc_ir myc_sema myc_parser)
 target_include_directories(mycc_test_s15 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s15 PRIVATE -Wall -Wextra)
 add_test(NAME s15 COMMAND mycc_test_s15 ${TESTS_DIR})

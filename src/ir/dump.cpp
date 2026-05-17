@@ -1,10 +1,11 @@
-/* текстовый принтер IR — codegen.md §2.3 */
-#include "ir/dump.h"
+/* текстовый принтер IR - codegen.md §2.3 */
+#include "ir/_pod.h"
 
 #include <ostream>
 #include <string>
 
 import mycc.diag;
+import mycc.sema;
 
 namespace mycc::ir {
 

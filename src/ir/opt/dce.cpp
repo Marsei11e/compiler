@@ -1,5 +1,5 @@
 // dead code elimination: см. semantics §15.2
-#include "ir/opt/passes.h"
+#include "ir/_pod.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -8,6 +8,7 @@
 #include <vector>
 
 import mycc.diag;
+import mycc.sema;
 
 namespace mycc::ir::opt {
 

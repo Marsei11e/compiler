@@ -1,17 +1,14 @@
-/* внутренний IR в форме трехадресного кода
- * лежит между аннотированным АСТ (выход семантики) и кодогенерацией в LLVM IR.
- * не в SSA-форме - локали живут в alloca-слотах; codegen рассчитывает на mem2reg
- * range_new/range_next и defer_* оставлены как высокоуровневые псевдо-опы,
- * чтобы оптимизатор мог их анализировать; codegen раскрывает их позже.
- */
 #pragma once
 
 #include "diag/_pod.h"
+#include "parser/_pod.h"
 #include "sema/_pod.h"
 
 #include <cstdint>
+#include <iosfwd>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace mycc::ir {
@@ -54,18 +51,18 @@ enum class Op : uint8_t {
     // вызовы (тип в Inst.call_kind)
     Call,
 
-    // ссылка на строковый литерал (операнд 0 — string id; результат — %string)
+    // ссылка на строковый литерал (операнд 0 - string id; результат - %string)
     StrLit,
 
     // псевдо-опы range (codegen раскрывает)
     RangeNew,  // %r = range_new T %from, %to
     RangeNext, // %v = range_next T %r - псевдо управления потоком (продвигает cur,
-               //   ветвится: есть-следующий -> result = cur, прыжок в тело;
-               //             исчерпан -> прыжок в done)
+    // ветвится: есть-следующий -> result = cur, прыжок в тело;
+     // исчерпан -> прыжок в done)
 
     // псевдо-маркеры defer (codegen разворачивает в LIFO-порядке на выходах)
     DeferPush, // defer_push <body_label>
-    DeferEmit, // defer_emit — на выходе из скопа/петли/функции, запускает все активные defers
+    DeferEmit, // defer_emit - на выходе из скопа/петли/функции, запускает все активные defers
 };
 
 // подвиды Op::Cast (семантика §3, codegen §6.6)
@@ -159,27 +156,27 @@ inline Operand const_string(uint32_t id, sema::TypeId t) {
 // Inst
 
 struct Inst {
-    Op                   op{};
+    Op op{};
     diag::SourceLocation loc{};
-    sema::TypeId         type{sema::kInvalidTypeId}; // тип результата/операнда
-    Operand              result;                     // None если нет результата
+    sema::TypeId type{sema::kInvalidTypeId}; // тип результата/операнда
+    Operand result; // None если нет результата
     std::vector<Operand> args;
 
     // данные, специфичные для op
-    CastKind     cast_kind{CastKind::Bitcast};  // Cast
-    CallKind     call_kind{CallKind::User};     // Call
-    std::string  callee;                        // Call (имя функции)
-    uint32_t     field_index{0};                // GetField
-    std::string  then_label;                    // Br/Jmp
-    std::string  else_label;                    // Br
-    uint32_t     defer_id{0};                   // DeferPush
-    std::string  defer_body_label;              // DeferPush
+    CastKind cast_kind{CastKind::Bitcast};  // Cast
+    CallKind call_kind{CallKind::User};     // Call
+    std::string callee;    // Call (имя функции)
+    uint32_t field_index{0}; // GetField
+    std::string  then_label; // Br/Jmp
+    std::string  else_label;// Br
+    uint32_t   defer_id{0}; // DeferPush
+    std::string  defer_body_label;  // DeferPush
 };
 
 // BasicBlock
 
 struct BasicBlock {
-    std::string       label;
+    std::string label;
     std::vector<Inst> insts;
 };
 
@@ -191,39 +188,60 @@ struct FnParam {
 };
 
 struct DeferEntry {
-    uint32_t    id{0};
+    uint32_t id{0};
     std::string body_label; // базовый блок с телом defer
 };
 
 struct Function {
-    std::string             source_name;  // имя на уровне языка
-    std::string             mangled_name;
+    std::string source_name;  // имя на уровне языка
+    std::string  mangled_name;
     std::vector<FnParam>    params;
-    sema::TypeId            return_ty{sema::kInvalidTypeId};
+    sema::TypeId return_ty{sema::kInvalidTypeId};
     std::vector<BasicBlock> blocks;
     std::vector<DeferEntry> defer_table;
-    bool                    is_main{false};
-    diag::SourceLocation    loc{};
+    bool is_main{false};
+    diag::SourceLocation  loc{};
 };
 
 // Module
 
 struct StringLiteral {
-    uint32_t    id{0};
+    uint32_t id{0};
     std::string value;
 };
 
 struct GlobalVar {
     std::string  name;
     sema::TypeId type{sema::kInvalidTypeId};
-    bool         is_const{false};
+    bool  is_const{false};
 };
 
 struct Module {
     std::vector<std::unique_ptr<Function>> functions;
-    std::vector<StringLiteral>             strings;
-    std::vector<GlobalVar>                 globals;
-    const sema::TypeInterner*              types{nullptr}; // заимствован
+    std::vector<StringLiteral>  strings;
+    std::vector<GlobalVar>   globals;
+    const sema::TypeInterner*   types{nullptr}; // заимствован
 };
 
+/* принимает аннотированный АСТ от Sema (в каждом Expr заполнен resolved_type_id,
+поток управления и эффекты проверены) и эмитирует линейный трехадресный
+Module, готовый для оптимизаций и эмиссии LLVM IR.*/
+std::unique_ptr<Module> lower_program(ast::Program& prog,
+sema::Sema& sema,
+diag::DiagnosticEngine& diag);
+
+/* текстовый принтер IR, формат описан в codegen.md §2.3 */
+void dump_module(const Module& mod, std::ostream& os);
+
 } // namespace mycc::ir
+
+namespace mycc::ir::opt {
+
+/* IR-оптимизации: constant folding и dead code elimination (semantics §15)
+optimize_module запускает обе фазы до фикспоинта. Каждая возвращает true,
+если что-то изменлось, чтобы драйвер мог итерироваться.*/
+bool const_fold(Module& mod);
+bool dce(Module& mod);
+void optimize_module(Module& mod);
+
+} // namespace mycc::ir::opt

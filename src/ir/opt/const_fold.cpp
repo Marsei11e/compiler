@@ -1,11 +1,12 @@
 // constant folding: см. semantics §15.1
-#include "ir/opt/passes.h"
+#include "ir/_pod.h"
 
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>
 
 import mycc.diag;
+import mycc.sema;
 
 namespace mycc::ir::opt {
 
