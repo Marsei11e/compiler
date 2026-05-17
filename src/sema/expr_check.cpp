@@ -1,5 +1,5 @@
 /* семантика проход 2 - проверка типов выражений и разрешение имен в телах функций */
-#include "sema/_pod.h"
+module;
 
 #include <cassert>
 #include <cstdint>
@@ -8,7 +8,10 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;

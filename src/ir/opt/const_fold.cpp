@@ -1,9 +1,11 @@
 // constant folding: см. semantics §15.1
-#include "ir/_pod.h"
+module;
 
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>
+
+module mycc.ir;
 
 import mycc.diag;
 import mycc.sema;
@@ -52,9 +54,7 @@ int64_t sext_to_i64(uint64_t v, uint32_t bw) {
     return static_cast<int64_t>((v ^ m) - m);
 }
 
-Operand fold_int_binop(Op op, const Operand& a, const Operand& b,
-                       TypeId opnd_ty, TypeId res_ty,
-                       const sema::TypeInterner& ti, bool& ok) {
+Operand fold_int_binop(Op op, const Operand& a, const Operand& b, TypeId opnd_ty, TypeId res_ty, const sema::TypeInterner& ti, bool& ok) {
     ok = false;
     if (a.kind != Operand::Kind::ConstInt || b.kind != Operand::Kind::ConstInt)
         return {};
@@ -107,8 +107,7 @@ Operand fold_int_binop(Op op, const Operand& a, const Operand& b,
     }
 }
 
-Operand fold_float_binop(Op op, const Operand& a, const Operand& b,
-                         TypeId res_ty, bool& ok) {
+Operand fold_float_binop(Op op, const Operand& a, const Operand& b, TypeId res_ty, bool& ok) {
     ok = false;
     if (a.kind != Operand::Kind::ConstFloat ||
         b.kind != Operand::Kind::ConstFloat) return {};
@@ -141,8 +140,7 @@ Operand fold_bool_binop(Op op, const Operand& a, const Operand& b, bool& ok) {
     }
 }
 
-Operand fold_unary(Op op, const Operand& a, TypeId res_ty,
-                   const sema::TypeInterner& ti, bool& ok) {
+Operand fold_unary(Op op, const Operand& a, TypeId res_ty, const sema::TypeInterner& ti, bool& ok) {
     ok = false;
     if (op == Op::LNot) {
         if (a.kind == Operand::Kind::ConstBool) {
@@ -169,8 +167,7 @@ Operand fold_unary(Op op, const Operand& a, TypeId res_ty,
     return {};
 }
 
-Operand fold_cast(CastKind ck, const Operand& a, TypeId to_ty,
-                  const sema::TypeInterner& ti, bool& ok) {
+Operand fold_cast(CastKind ck, const Operand& a, TypeId to_ty, const sema::TypeInterner& ti, bool& ok) {
     ok = false;
     auto to_int = [&](uint64_t u) {
         uint32_t bw = ti.bit_width(to_ty);

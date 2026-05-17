@@ -1,9 +1,11 @@
 /* раскрытие оператора |>. правила перезаписи см. в интерфейсе */
-#include "sema/_pod.h"
+module;
 
 #include <memory>
 #include <utility>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.parser;

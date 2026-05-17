@@ -1,11 +1,13 @@
 /* реализация разрешения перегрузки - семантика §13.2 */
-#include "sema/_pod.h"
+module;
 
 #include <cassert>
 #include <string>
 #include <span>
 #include <utility>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;

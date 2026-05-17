@@ -1,11 +1,13 @@
 // dead code elimination: см. semantics §15.2
-#include "ir/_pod.h"
+module;
 
 #include <algorithm>
 #include <cstdint>
 #include <queue>
 #include <unordered_set>
 #include <vector>
+
+module mycc.ir;
 
 import mycc.diag;
 import mycc.sema;
@@ -65,8 +67,7 @@ bool drop_after_terminator(Function& fn) {
             Op op = bb.insts[i].op;
             if (op == Op::Ret || op == Op::Jmp || op == Op::Br) {
                 if (i + 1 < bb.insts.size()) {
-                    bb.insts.erase(bb.insts.begin() + static_cast<long>(i + 1),
-                                   bb.insts.end());
+                    bb.insts.erase(bb.insts.begin() + static_cast<long>(i + 1), bb.insts.end());
                     changed = true;
                 }
                 break;

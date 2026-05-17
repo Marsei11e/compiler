@@ -7,13 +7,16 @@
 вызов неаннотированной пользовательской функции -> неизвестно
 встроенные (FnSymbol::decl == nullptr) всегда несут явные эффекты, никогда не считаются "неаннотированными"
  */
-#include "sema/_pod.h"
+module;
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;

@@ -1,8 +1,11 @@
-/* реализация DiagnosticEngine */
-#include "diag/_pod.h"
+module;
 
 #include <ostream>
+#include <string>
+#include <string_view>
 #include <utility>
+
+module mycc.diag;
 
 namespace mycc::diag {
 

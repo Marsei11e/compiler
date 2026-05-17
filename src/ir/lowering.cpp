@@ -1,12 +1,15 @@
 /* АСТ -> IR */
-#include "ir/_pod.h"
+module;
 
 #include <cassert>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
+
+module mycc.ir;
 
 import mycc.diag;
 import mycc.lexer;
@@ -200,8 +203,7 @@ private:
         }
         case NodeKind::ArrayTypeRef: {
             auto* a = static_cast<const ArrayTypeRef*>(node);
-            return sema_.types().intern_array(sema_for_type(a->elem_type.get()),
-                                              a->size);
+            return sema_.types().intern_array(sema_for_type(a->elem_type.get()),a->size);
         }
         case NodeKind::RangeTypeRef: {
             auto* r = static_cast<const RangeTypeRef*>(node);
@@ -244,7 +246,7 @@ private:
         case TK::KwBool:  return TypeId{static_cast<uint32_t>(TypeKind::Bool)};
         case TK::KwString:return TypeId{static_cast<uint32_t>(TypeKind::String)};
         case TK::Hollow:  return TypeId{static_cast<uint32_t>(TypeKind::Hollow)};
-        default:          return kInvalidTypeId;
+        default: return kInvalidTypeId;
         }
     }
 
@@ -1268,8 +1270,7 @@ private:
             Operand addr = new_temp(elem_ty);
             Inst ge; ge.op = Op::GetElem; ge.type = elem_ty; ge.result = addr;
             ge.args.push_back(slot);
-            ge.args.push_back(const_int(static_cast<int64_t>(i),
-                                        tid(static_cast<uint32_t>(TypeKind::I64))));
+            ge.args.push_back(const_int(static_cast<int64_t>(i), tid(static_cast<uint32_t>(TypeKind::I64))));
             ge.loc = al->elements[i]->loc;
             emit(std::move(ge));
             Inst st; st.op = Op::Store; st.type = elem_ty;

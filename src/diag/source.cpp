@@ -1,9 +1,15 @@
-/* реализация SourceManager */
-#include "diag/_pod.h"
+module;
 
 #include <algorithm>
+#include <cstdint>
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+module mycc.diag;
 
 namespace mycc::diag {
 

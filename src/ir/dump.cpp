@@ -1,8 +1,10 @@
 /* текстовый принтер IR - codegen.md §2.3 */
-#include "ir/_pod.h"
+module;
 
 #include <ostream>
 #include <string>
+
+module mycc.ir;
 
 import mycc.diag;
 import mycc.sema;

@@ -1,5 +1,5 @@
 /* семантика проход 1 - сбор объявлений верхнего уровня и структурные проверки */
-#include "sema/_pod.h"
+module;
 
 #include <cassert>
 #include <initializer_list>
@@ -7,7 +7,10 @@
 #include <string>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;

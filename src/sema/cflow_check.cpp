@@ -8,10 +8,13 @@
  блок дивергирует если одна из инструкций дивергирует до конца.
  if-инструкция дивергирует если обе ветки дивергируют (else обязателен для распространения)
  */
-#include "sema/_pod.h"
+module;
 
 #include <cstddef>
+#include <string>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;

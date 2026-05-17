@@ -1,5 +1,5 @@
 /* отслеживание перемещений range[T]. модель см. в интерфейсе move_check */
-#include "sema/_pod.h"
+module;
 
 #include <cstddef>
 #include <cstdint>
@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+module mycc.sema;
 
 import mycc.diag;
 import mycc.lexer;
