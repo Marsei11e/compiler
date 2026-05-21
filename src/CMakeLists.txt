@@ -73,9 +73,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(myc PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-# Unit test targets
 add_executable(mycc_test
-    ../tests/unit/test_diag.cpp
+    tests/unit/test_diag.cpp
 )
 target_link_libraries(mycc_test PRIVATE myc_diag)
 target_include_directories(mycc_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -83,43 +82,43 @@ target_compile_options(mycc_test PRIVATE -Wall -Wextra)
 
 set(PARTICLES_LANG "${CMAKE_SOURCE_DIR}/readit/particles.lang")
 add_executable(mycc_test_lexer
-    ../tests/unit/test_lexer.cpp
+    tests/unit/test_lexer.cpp
 )
 target_link_libraries(mycc_test_lexer PRIVATE myc_lexer)
 target_include_directories(mycc_test_lexer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_lexer PRIVATE -Wall -Wextra)
 
 add_executable(mycc_test_ast
-    ../tests/unit/test_ast.cpp
+    tests/unit/test_ast.cpp
 )
 target_link_libraries(mycc_test_ast PRIVATE myc_parser)
 target_include_directories(mycc_test_ast PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_ast PRIVATE -Wall -Wextra)
 
 add_executable(mycc_test_parser
-    ../tests/unit/test_parser.cpp
+    tests/unit/test_parser.cpp
 )
 target_link_libraries(mycc_test_parser PRIVATE myc_parser)
 target_include_directories(mycc_test_parser PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_parser PRIVATE -Wall -Wextra)
 
 add_executable(mycc_test_s6
-    ../tests/unit/test_s6.cpp
+    tests/unit/test_s6.cpp
 )
 target_link_libraries(mycc_test_s6 PRIVATE myc_parser)
 target_include_directories(mycc_test_s6 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s6 PRIVATE -Wall -Wextra)
 
 add_executable(mycc_test_s7
-    ../tests/unit/test_s7.cpp
+    tests/unit/test_s7.cpp
 )
 target_link_libraries(mycc_test_s7 PRIVATE myc_sema)
 target_include_directories(mycc_test_s7 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s7 PRIVATE -Wall -Wextra)
 
-set(TESTS_DIR "${CMAKE_SOURCE_DIR}/readit/tests")
+set(TESTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tests")
 add_executable(mycc_test_s8
-    ../tests/unit/test_s8.cpp
+    tests/unit/test_s8.cpp
 )
 target_link_libraries(mycc_test_s8 PRIVATE myc_sema)
 target_include_directories(mycc_test_s8 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -127,7 +126,7 @@ target_compile_options(mycc_test_s8 PRIVATE -Wall -Wextra)
 add_test(NAME s8 COMMAND mycc_test_s8 ${TESTS_DIR})
 
 add_executable(mycc_test_s9
-    ../tests/unit/test_s9.cpp
+    tests/unit/test_s9.cpp
 )
 target_link_libraries(mycc_test_s9 PRIVATE myc_sema)
 target_include_directories(mycc_test_s9 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -135,7 +134,7 @@ target_compile_options(mycc_test_s9 PRIVATE -Wall -Wextra)
 add_test(NAME s9 COMMAND mycc_test_s9 ${TESTS_DIR})
 
 add_executable(mycc_test_s10
-    ../tests/unit/test_s10.cpp
+    tests/unit/test_s10.cpp
 )
 target_link_libraries(mycc_test_s10 PRIVATE myc_sema)
 target_include_directories(mycc_test_s10 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -143,7 +142,7 @@ target_compile_options(mycc_test_s10 PRIVATE -Wall -Wextra)
 add_test(NAME s10 COMMAND mycc_test_s10 ${TESTS_DIR})
 
 add_executable(mycc_test_s11
-    ../tests/unit/test_s11.cpp
+    tests/unit/test_s11.cpp
 )
 target_link_libraries(mycc_test_s11 PRIVATE myc_sema)
 target_include_directories(mycc_test_s11 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -151,7 +150,7 @@ target_compile_options(mycc_test_s11 PRIVATE -Wall -Wextra)
 add_test(NAME s11 COMMAND mycc_test_s11 ${TESTS_DIR})
 
 add_executable(mycc_test_s12
-    ../tests/unit/test_s12.cpp
+    tests/unit/test_s12.cpp
 )
 target_link_libraries(mycc_test_s12 PRIVATE myc_sema)
 target_include_directories(mycc_test_s12 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -159,7 +158,7 @@ target_compile_options(mycc_test_s12 PRIVATE -Wall -Wextra)
 add_test(NAME s12 COMMAND mycc_test_s12 ${TESTS_DIR})
 
 add_executable(mycc_test_s13
-    ../tests/unit/test_s13.cpp
+    tests/unit/test_s13.cpp
 )
 target_link_libraries(mycc_test_s13 PRIVATE myc_sema)
 target_include_directories(mycc_test_s13 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -167,7 +166,7 @@ target_compile_options(mycc_test_s13 PRIVATE -Wall -Wextra)
 add_test(NAME s13 COMMAND mycc_test_s13 ${TESTS_DIR})
 
 add_executable(mycc_test_s14
-    ../tests/unit/test_s14.cpp
+    tests/unit/test_s14.cpp
 )
 target_link_libraries(mycc_test_s14 PRIVATE myc_ir myc_sema myc_parser)
 target_include_directories(mycc_test_s14 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -175,9 +174,16 @@ target_compile_options(mycc_test_s14 PRIVATE -Wall -Wextra)
 add_test(NAME s14 COMMAND mycc_test_s14 ${TESTS_DIR})
 
 add_executable(mycc_test_s15
-    ../tests/unit/test_s15.cpp
+    tests/unit/test_s15.cpp
 )
 target_link_libraries(mycc_test_s15 PRIVATE myc_ir myc_sema myc_parser)
 target_include_directories(mycc_test_s15 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s15 PRIVATE -Wall -Wextra)
 add_test(NAME s15 COMMAND mycc_test_s15 ${TESTS_DIR})
+
+add_test(NAME diag   COMMAND mycc_test)
+add_test(NAME lexer  COMMAND mycc_test_lexer ${PARTICLES_LANG})
+add_test(NAME ast    COMMAND mycc_test_ast)
+add_test(NAME parser COMMAND mycc_test_parser)
+add_test(NAME s6     COMMAND mycc_test_s6 ${TESTS_DIR})
+add_test(NAME s7     COMMAND mycc_test_s7)
