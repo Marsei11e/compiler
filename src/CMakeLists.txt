@@ -65,6 +65,19 @@ target_include_directories(myc_ir PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(myc_ir PUBLIC cxx_std_23)
 target_link_libraries(myc_ir PUBLIC myc_sema myc_parser myc_lexer myc_diag)
 
+add_library(myc_codegen STATIC)
+target_sources(myc_codegen
+    PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES
+        codegen/codegen.cppm
+    PRIVATE
+        codegen/llvm_types.cpp
+        codegen/mangle.cpp
+        codegen/llvm_emitter.cpp
+)
+target_include_directories(myc_codegen PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(myc_codegen PUBLIC cxx_std_23)
+target_link_libraries(myc_codegen PUBLIC myc_ir myc_sema myc_parser myc_lexer myc_diag)
+
 add_executable(myc main.cpp)
 target_link_libraries(myc PRIVATE mycrt myc_ir myc_sema myc_parser)
 target_include_directories(myc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -180,6 +193,14 @@ target_link_libraries(mycc_test_s15 PRIVATE myc_ir myc_sema myc_parser)
 target_include_directories(mycc_test_s15 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s15 PRIVATE -Wall -Wextra)
 add_test(NAME s15 COMMAND mycc_test_s15 ${TESTS_DIR})
+
+add_executable(mycc_test_s16
+    tests/unit/test_s16.cpp
+)
+target_link_libraries(mycc_test_s16 PRIVATE myc_codegen myc_ir myc_sema myc_parser)
+target_include_directories(mycc_test_s16 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s16 PRIVATE -Wall -Wextra)
+add_test(NAME s16 COMMAND mycc_test_s16)
 
 add_test(NAME diag   COMMAND mycc_test)
 add_test(NAME lexer  COMMAND mycc_test_lexer ${PARTICLES_LANG})
