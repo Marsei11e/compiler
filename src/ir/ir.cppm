@@ -194,9 +194,18 @@ struct DeferEntry {
     std::string body_label; // базовый блок с телом defer
 };
 
+// один уровень вложенности (namespace или impl-блок) для mangling.
+// заполняется lower_program; emit-фаза превращает в cg::MangleScope
+struct FnScopeEntry {
+    std::string name;
+    bool        is_impl{false};
+};
+
 struct Function {
     std::string source_name;  // имя на уровне языка
     std::string  mangled_name;
+    std::string  short_name; // только имя функции (без префиксов namespace/impl)
+    std::vector<FnScopeEntry> scopes; // путь вложенности от внешнего к внутреннему
     std::vector<FnParam>    params;
     sema::TypeId return_ty{sema::kInvalidTypeId};
     std::vector<BasicBlock> blocks;

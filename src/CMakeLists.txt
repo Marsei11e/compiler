@@ -79,7 +79,7 @@ target_compile_features(myc_codegen PUBLIC cxx_std_23)
 target_link_libraries(myc_codegen PUBLIC myc_ir myc_sema myc_parser myc_lexer myc_diag)
 
 add_executable(myc main.cpp)
-target_link_libraries(myc PRIVATE mycrt myc_ir myc_sema myc_parser)
+target_link_libraries(myc PRIVATE mycrt myc_codegen myc_ir myc_sema myc_parser)
 target_include_directories(myc PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -201,6 +201,14 @@ target_link_libraries(mycc_test_s16 PRIVATE myc_codegen myc_ir myc_sema myc_pars
 target_include_directories(mycc_test_s16 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s16 PRIVATE -Wall -Wextra)
 add_test(NAME s16 COMMAND mycc_test_s16)
+
+add_executable(mycc_test_s17
+    tests/unit/test_s17.cpp
+)
+target_link_libraries(mycc_test_s17 PRIVATE myc_codegen myc_ir myc_sema myc_parser)
+target_include_directories(mycc_test_s17 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s17 PRIVATE -Wall -Wextra)
+add_test(NAME s17 COMMAND mycc_test_s17 ${TESTS_DIR})
 
 add_test(NAME diag   COMMAND mycc_test)
 add_test(NAME lexer  COMMAND mycc_test_lexer ${PARTICLES_LANG})

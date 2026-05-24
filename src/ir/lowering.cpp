@@ -36,7 +36,9 @@ public:
         auto mod = std::make_unique<Module>();
         mod->types = &sema_.types();
         mod_ = mod.get();
-        for (auto& d : prog.decls) lower_top_decl(d.get(), /*ns_prefix=*/"");
+        std::vector<FnScopeEntry> empty_scopes;
+        for (auto& d : prog.decls)
+            lower_top_decl(d.get(), /*ns_prefix=*/"", empty_scopes);
         return mod;
     }
 
@@ -73,10 +75,12 @@ private:
 
     // верхний уровень
 
-    void lower_top_decl(Decl* d, const std::string& ns_prefix) {
+    void lower_top_decl(Decl* d, const std::string& ns_prefix,
+                        const std::vector<FnScopeEntry>& scopes) {
         switch (d->kind) {
         case NodeKind::FnDecl:
-            lower_fn(ast_cast<FnDecl>(d), ns_prefix, /*self_ty=*/kInvalidTypeId);
+            lower_fn(ast_cast<FnDecl>(d), ns_prefix,
+                     /*self_ty=*/kInvalidTypeId, scopes);
             break;
         case NodeKind::ImplBlock: {
             auto* impl = ast_cast<ImplBlock>(d);
@@ -86,15 +90,19 @@ private:
                 if (auto* ss = std::get_if<sema::StructSymbol>(ent))
                     self_ty = ss->type_id;
             std::string prefix = ns_prefix + impl->type_name + "::";
+            auto sub = scopes;
+            sub.push_back({impl->type_name, /*is_impl=*/true});
             for (auto& m : impl->methods)
-                lower_fn(const_cast<FnDecl*>(&m), prefix, self_ty);
+                lower_fn(const_cast<FnDecl*>(&m), prefix, self_ty, sub);
             break;
         }
         case NodeKind::NamespaceDecl: {
             auto* ns = ast_cast<NamespaceDecl>(d);
             std::string prefix = ns_prefix + ns->name + "::";
+            auto sub = scopes;
+            sub.push_back({ns->name, /*is_impl=*/false});
             for (auto& nd : ns->decls)
-                lower_top_decl(nd.get(), prefix);
+                lower_top_decl(nd.get(), prefix, sub);
             break;
         }
         case NodeKind::VarDecl:
@@ -117,11 +125,14 @@ private:
         }
     }
 
-    void lower_fn(FnDecl* fn, const std::string& prefix, TypeId self_ty) {
+    void lower_fn(FnDecl* fn, const std::string& prefix, TypeId self_ty,
+                  const std::vector<FnScopeEntry>& scopes) {
         if (!fn->body) return;
 
         auto func = std::make_unique<Function>();
         func->source_name = prefix + fn->name;
+        func->short_name  = fn->name;
+        func->scopes      = scopes;
         func->is_main     = (fn->name == "main" && prefix.empty());
         func->loc         = fn->loc;
         func->return_ty   = fn->return_type
