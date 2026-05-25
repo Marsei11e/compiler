@@ -210,6 +210,14 @@ target_include_directories(mycc_test_s17 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s17 PRIVATE -Wall -Wextra)
 add_test(NAME s17 COMMAND mycc_test_s17 ${TESTS_DIR})
 
+add_executable(mycc_test_s18
+    tests/unit/test_s18.cpp
+)
+target_link_libraries(mycc_test_s18 PRIVATE mycrt)
+target_include_directories(mycc_test_s18 PRIVATE ${CMAKE_SOURCE_DIR})
+target_compile_options(mycc_test_s18 PRIVATE -Wall -Wextra)
+add_test(NAME s18 COMMAND mycc_test_s18)
+
 add_test(NAME diag   COMMAND mycc_test)
 add_test(NAME lexer  COMMAND mycc_test_lexer ${PARTICLES_LANG})
 add_test(NAME ast    COMMAND mycc_test_ast)
