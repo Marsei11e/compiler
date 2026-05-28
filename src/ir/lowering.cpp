@@ -107,18 +107,51 @@ private:
         }
         case NodeKind::VarDecl:
         case NodeKind::ConstDecl: {
-            const std::string& name =
-                d->kind == NodeKind::VarDecl
-                    ? ast_cast<VarDecl>(d)->name
-                    : ast_cast<ConstDecl>(d)->name;
-            if (auto* ent = sema_.global_scope().lookup(name))
-                if (auto* vs = std::get_if<sema::VarSymbol>(ent)) {
-                    GlobalVar gv;
-                    gv.name = ns_prefix + name;
-                    gv.type = vs->type;
-                    gv.is_const = vs->is_const;
-                    mod_->globals.push_back(std::move(gv));
+            bool is_const_decl = d->kind == NodeKind::ConstDecl;
+            const std::string& name = is_const_decl
+                ? ast_cast<ConstDecl>(d)->name
+                : ast_cast<VarDecl>(d)->name;
+            Expr* init_expr = is_const_decl
+                ? ast_cast<ConstDecl>(d)->init.get()
+                : ast_cast<VarDecl>(d)->init.get();
+            TypeNode* type_ann = is_const_decl
+                ? ast_cast<ConstDecl>(d)->type_ann.get()
+                : ast_cast<VarDecl>(d)->type_ann.get();
+
+            GlobalVar gv;
+            gv.name = name; // имена глобалов не префиксируются namespace - см. lower_ident
+            gv.is_const = is_const_decl;
+            gv.type = init_expr && init_expr->resolved_type_id != UINT32_MAX
+                ? tid(init_expr->resolved_type_id)
+                : (type_ann ? sema_for_type(type_ann) : kInvalidTypeId);
+
+            // если инициализатор - простой константный литерал, сохраним его
+            if (init_expr) {
+                switch (init_expr->kind) {
+                case NodeKind::IntLit: {
+                    auto* il = ast_cast<IntLit>(init_expr);
+                    Operand o;
+                    o.kind = Operand::Kind::ConstInt;
+                    o.cu = il->data.value;
+                    o.ci = static_cast<int64_t>(il->data.value);
+                    o.type = gv.type;
+                    gv.init = std::move(o);
+                    break;
                 }
+                case NodeKind::FloatLit: {
+                    auto* fl = ast_cast<FloatLit>(init_expr);
+                    gv.init = const_float(fl->data.value, gv.type);
+                    break;
+                }
+                case NodeKind::BoolLit: {
+                    auto* bl = ast_cast<BoolLit>(init_expr);
+                    gv.init = const_bool(bl->value, gv.type);
+                    break;
+                }
+                default: break;
+                }
+            }
+            mod_->globals.push_back(std::move(gv));
             break;
         }
         default: break; // StructDecl, TypeAliasDecl: только тип, без IR
@@ -449,6 +482,11 @@ private:
             auto it = named_slots_.find(ie->name);
             if (it != named_slots_.end()) return it->second;
             return global(ie->name, tid_of(e));
+        }
+        case NodeKind::SelfExpr: {
+            auto it = named_slots_.find("self");
+            if (it != named_slots_.end()) return it->second;
+            return global("self", tid_of(e));
         }
         case NodeKind::FieldAccess: {
             auto* fa = ast_cast<FieldAccess>(e);
@@ -998,6 +1036,11 @@ private:
         TypeId  lt = tid_of(be->left.get());
         TypeId  res_ty = tid_of(be);
 
+        // строки: +, ==, != транслируются в вызовы рантайма (codegen.md §6.18)
+        if (sema_.types().get(lt).kind == TypeKind::String) {
+            return lower_string_binop(be, std::move(l), std::move(r), lt, res_ty);
+        }
+
         Op op;
         switch (be->op) {
         case BinaryOp::Add:
@@ -1041,6 +1084,69 @@ private:
         i.loc = be->loc;
         emit(std::move(i));
         return res;
+    }
+
+    Operand lower_string_binop(BinaryExpr* be, Operand l, Operand r, TypeId str_ty, TypeId res_ty) {
+        TypeId bool_ty = tid(static_cast<uint32_t>(TypeKind::Bool));
+        switch (be->op) {
+        case BinaryOp::Add: {
+            Operand res = new_temp(str_ty);
+            Inst c;
+            c.op = Op::Call;
+            c.type = str_ty;
+            c.call_kind = CallKind::Runtime;
+            c.callee = "rt_string_concat";
+            c.result = res;
+            c.args.push_back(std::move(l));
+            c.args.push_back(std::move(r));
+            c.loc = be->loc;
+            emit(std::move(c));
+            return res;
+        }
+        case BinaryOp::Eq:
+        case BinaryOp::Ne: {
+            // rt_string_eq возвращает i32 (по соглашению C-рантайма)
+            // приведём результат к bool ниже
+            TypeId i32_ty = tid(static_cast<uint32_t>(TypeKind::I32));
+            Operand raw = new_temp(i32_ty);
+            Inst c;
+            c.op = Op::Call;
+            c.type = i32_ty;
+            c.call_kind = CallKind::Runtime;
+            c.callee = "rt_string_eq";
+            c.result = raw;
+            c.args.push_back(std::move(l));
+            c.args.push_back(std::move(r));
+            c.loc = be->loc;
+            emit(std::move(c));
+
+            // i32 -> bool через icmp ne 0
+            Operand eq_b = new_temp(bool_ty);
+            Inst cast;
+            cast.op = Op::Cast;
+            cast.type = bool_ty;
+            cast.cast_kind = CastKind::IntToBool;
+            cast.result = eq_b;
+            cast.args.push_back(raw);
+            cast.loc = be->loc;
+            emit(std::move(cast));
+
+            if (be->op == BinaryOp::Eq) return eq_b;
+            // != -> !eq
+            Operand neq_b = new_temp(bool_ty);
+            Inst n;
+            n.op = Op::LNot;
+            n.type = bool_ty;
+            n.result = neq_b;
+            n.args.push_back(eq_b);
+            n.loc = be->loc;
+            emit(std::move(n));
+            return neq_b;
+        }
+        default:
+            (void)res_ty;
+            return none_op();
+        }
     }
 
     Operand lower_short_circuit(BinaryExpr* be) {

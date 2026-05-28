@@ -225,6 +225,9 @@ struct GlobalVar {
     std::string  name;
     sema::TypeId type{sema::kInvalidTypeId};
     bool  is_const{false};
+    // если инициализатор - простой литерал (int/float/bool/string), он сохраняется здесь
+    // codegen эмитит глобал как LLVM constant. Если init.is_none(), глобал получает 'zeroinitializer'.
+    Operand init;
 };
 
 struct Module {

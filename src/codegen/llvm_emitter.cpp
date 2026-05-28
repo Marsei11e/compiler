@@ -1,4 +1,4 @@
-// текстовый эмиттер LLVM IR - codegen.md §6.1- §6.10
+// текстовый эмиттер LLVM IR - codegen.md §6
 module;
 
 #include <cstdint>
@@ -13,6 +13,8 @@ module;
 
 module mycc.codegen;
 
+import mycc.lexer;
+import mycc.parser;
 import mycc.sema;
 import mycc.ir;
 
@@ -58,6 +60,28 @@ bool is_bool_ty(const TypeInterner& ti, TypeId t) {
     return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::Bool;
 }
 
+bool is_string_ty(const TypeInterner& ti, TypeId t) {
+    return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::String;
+}
+
+bool is_struct_ty(const TypeInterner& ti, TypeId t) {
+    return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::Struct;
+}
+
+bool is_array_ty(const TypeInterner& ti, TypeId t) {
+    return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::Array;
+}
+
+// экранирование байта строкового литерала в синтаксис LLVM `c"..."`
+std::string escape_byte(unsigned char b) {
+    if (b == '\\' || b == '"' || b < 0x20 || b >= 0x7F) {
+        char buf[8];
+        std::snprintf(buf, sizeof buf, "\\%02X", b);
+        return buf;
+    }
+    return std::string(1, static_cast<char>(b));
+}
+
 // emitter
 
 class Emitter {
@@ -66,6 +90,8 @@ public:
 
     std::string run() {
         if (is_empty_module(mod_)) return {};
+
+        prebuild_symbols();
 
         for (const auto& fp : mod_.functions) {
             emit_function(*fp);
@@ -76,12 +102,48 @@ public:
         out << "; ModuleID = 'mycc'\n";
         out << "target triple = \"x86_64-unknown-linux-gnu\"\n";
         out << "\n";
-        //тип для строки эмитим всегда
+        // именованные типы: %string + все struct-типы, упомянутые в модуле
         out << string_type_def() << "\n";
+        emit_struct_type_defs(out);
+        out << "\n";
+        // глобальные строковые литералы
+        for (const auto& sl : mod_.strings) {
+            size_t n = sl.value.size() + 1; // включая trailing \0 для C ABI
+            out << "@.str." << sl.id
+                << " = private unnamed_addr constant ["
+                << n << " x i8] c\"";
+            for (unsigned char b : sl.value) out << escape_byte(b);
+            out << "\\00\"\n";
+        }
+        if (!mod_.strings.empty()) out << "\n";
+
+        // глобальные переменные/константы верхнего уровня и namespace
+        for (const auto& g : mod_.globals) {
+            const char* kind = g.is_const ? "constant" : "global";
+            std::string ty = ll_type(*ti_, g.type, /*storage=*/true);
+            std::string init = global_init_value(g);
+            out << "@" << g.name << " = " << kind << " " << ty
+                << " " << init << "\n";
+        }
+        if (!mod_.globals.empty()) out << "\n";
+
         std::string externs = preamble_.str();
-        if (!externs.empty()) out << "\n" << externs;
-        out << "\n" << body_.str();
+        if (!externs.empty()) out << externs << "\n";
+        out << body_.str();
         return out.str();
+    }
+
+    std::string global_init_value(const ir::GlobalVar& g) const {
+        if (g.init.is_none()) return "zeroinitializer";
+        switch (g.init.kind) {
+        case ir::Operand::Kind::ConstInt:
+            if (g.type != sema::kInvalidTypeId && ti_->is_unsigned_int(g.type))
+                return std::to_string(g.init.cu);
+            return std::to_string(g.init.ci);
+        case ir::Operand::Kind::ConstFloat:  return hex_double(g.init.cf);
+        case ir::Operand::Kind::ConstBool:   return g.init.cb ? "1" : "0";
+        default: return "zeroinitializer";
+        }
     }
 
 private:
@@ -90,11 +152,12 @@ private:
     std::ostringstream preamble_;
     std::ostringstream body_;
     std::unordered_set<std::string> declared_externals_;
+    std::unordered_set<uint32_t>    struct_types_seen_;
+    std::vector<TypeId>             struct_types_order_;
     uint32_t synth_id_{0};
     // сопоставление source_name -> mangled-имя символа: позволяет правильно вызывать пользовательские функции/методы по callee из IR
     std::unordered_map<std::string, std::string> sym_by_source_;
     //cопоставление source_name -> return-тип, чтобы корректно эмитить вызовы
-    //(тип возврата вычислителен на стороне callee; в IR в Inst.type стоит, но при method-вызовах удобно иметь fallback).
     std::unordered_map<std::string, TypeId> ret_by_source_;
 
     void prebuild_symbols() {
@@ -114,7 +177,6 @@ private:
         }
         sema::FnSymbol tmp;
         tmp.name = f.short_name.empty() ? f.source_name : f.short_name;
-        // mangle берёт типы из FnSymbol::Param.type - заполняем
         tmp.params.reserve(f.params.size());
         for (const auto& p : f.params)
             tmp.params.push_back({p.type, p.name});
@@ -124,6 +186,93 @@ private:
     void ensure_external(const std::string& decl_line, const std::string& key) {
         if (!declared_externals_.insert(key).second) return;
         preamble_ << decl_line << "\n";
+    }
+
+    void note_struct_type(TypeId t) {
+        if (t == sema::kInvalidTypeId) return;
+        const auto& td = ti_->get(t);
+        if (td.kind == TypeKind::Struct) {
+            if (struct_types_seen_.insert(t.index).second) {
+                struct_types_order_.push_back(t);
+                if (td.struct_decl) {
+                    for (const auto& f : td.struct_decl->fields) {
+                    }
+                }
+            }
+        } else if (td.kind == TypeKind::Array || td.kind == TypeKind::Range) {
+            note_struct_type(td.elem);
+        }
+    }
+
+    void emit_struct_type_defs(std::ostringstream& out) {
+        // сначала пройдёмся по типам всех инструкций модуля, чтобы собрать все встречающиеся struct-типы.
+        for (const auto& fp : mod_.functions) {
+            for (const auto& p : fp->params) note_struct_type(p.type);
+            note_struct_type(fp->return_ty);
+            for (const auto& bb : fp->blocks) {
+                for (const auto& I : bb.insts) {
+                    note_struct_type(I.type);
+                    for (const auto& a : I.args) note_struct_type(a.type);
+                    if (!I.result.is_none()) note_struct_type(I.result.type);
+                }
+            }
+        }
+        for (const auto& g : mod_.globals) note_struct_type(g.type);
+
+        for (TypeId t : struct_types_order_) {
+            const auto& td = ti_->get(t);
+            out << "%" << td.display << " = type { ";
+            if (td.struct_decl) {
+                size_t i = 0;
+                for (const auto& f : td.struct_decl->fields) {
+                    if (i++) out << ", ";
+                    out << field_type_string(f.type.get());
+                }
+            }
+            out << " }\n";
+        }
+    }
+
+    std::string field_type_string(const ast::TypeNode* tn) const {
+        if (!tn) return "i32";
+        using NK = ast::NodeKind;
+        switch (tn->kind) {
+        case NK::BuiltinTypeRef: {
+            auto* b = static_cast<const ast::BuiltinTypeRef*>(tn);
+            using TK = lex::TokenKind;
+            switch (b->builtin) {
+            case TK::Int8: case TK::Uint8: return "i8";
+            case TK::Int16: case TK::Uint16: return "i16";
+            case TK::Int32: case TK::Uint32: return "i32";
+            case TK::Int64: case TK::Uint64: return "i64";
+            case TK::Float32: return "float";
+            case TK::Float64: return "double";
+            case TK::KwBool: return "i8";
+            case TK::KwString: return "%string";
+            case TK::Hollow: return "void";
+            default: return "i32";
+            }
+        }
+        case NK::ArrayTypeRef: {
+            auto* a = static_cast<const ast::ArrayTypeRef*>(tn);
+            return "[" + std::to_string(a->size) + " x "
+                 + field_type_string(a->elem_type.get()) + "]";
+        }
+        case NK::RangeTypeRef: {
+            auto* r = static_cast<const ast::RangeTypeRef*>(tn);
+            std::string e = field_type_string(r->elem_type.get());
+            return "{ " + e + ", " + e + " }";
+        }
+        case NK::NamedTypeRef: {
+            auto* n = static_cast<const ast::NamedTypeRef*>(tn);
+            return "%" + n->name;
+        }
+        case NK::NamespacedTypeRef: {
+            auto* nt = static_cast<const ast::NamespacedTypeRef*>(tn);
+            return "%" + nt->name;
+        }
+        default: return "i32";
+        }
     }
 
     std::string fresh_synth() {
@@ -154,12 +303,10 @@ private:
     // эмиссия функций / блоков
 
     void emit_function(const ir::Function& f) {
-        if (sym_by_source_.empty()) const_cast<Emitter*>(this)->prebuild_symbols();
-
         std::string sym = sym_by_source_[f.source_name];
         if (sym.empty()) sym = compute_symbol(f);
 
-        // Сигнатура: для main всегда i32, иначе по return_ty.
+        //сигнатура: для main всегда i32, иначе по return_ty.
         std::string ret_ty = f.is_main
             ? std::string("i32")
             : ll_type(*ti_, f.return_ty, /*storage=*/false);
@@ -180,7 +327,6 @@ private:
                 emit_inst(ins, f);
 
             // гарантия терминатора: LLVM требует, чтобы каждый блок завершался
-            // не дублируем, если терминатор уже в последней инструкции
             bool terminated = !bb.insts.empty() && is_terminator(bb.insts.back().op);
             if (!terminated) {
                 if (!f.is_main && is_void_ty(*ti_, f.return_ty))
@@ -193,7 +339,7 @@ private:
     }
 
     void emit_inst(const ir::Inst& I, const ir::Function& f) {
-        switch (I.op) {
+        switch (I.op) { 
         case ir::Op::Alloca:    emit_alloca(I); break;
         case ir::Op::Load:      emit_load(I); break;
         case ir::Op::Store:     emit_store(I); break;
@@ -204,6 +350,9 @@ private:
         case ir::Op::Neg:       emit_neg(I); break;
         case ir::Op::LNot:      emit_lnot(I); break;
         case ir::Op::Call:      emit_call(I); break;
+        case ir::Op::StrLit:    emit_strlit(I); break;
+        case ir::Op::GetField:  emit_getfield(I); break;
+        case ir::Op::GetElem:   emit_getelem(I); break;
         case ir::Op::Add: case ir::Op::Sub: case ir::Op::Mul:
         case ir::Op::SDiv: case ir::Op::UDiv: case ir::Op::FDiv:
         case ir::Op::SRem: case ir::Op::URem:
@@ -217,12 +366,6 @@ private:
         case ir::Op::LAnd: case ir::Op::LOr:
             emit_logic(I); break;
 
-        // эмиттер обслуживает скалярные операции, поток управления и вызовы;
-        // агрегаты (строки/массивы/struct), диапазоны и развёртка defer
-        // требуют отдельной инфраструктуры и сейчас в эмиссию не входят.
-        case ir::Op::StrLit:    body_ << "    ; unsupported: strlit\n";    break;
-        case ir::Op::GetField:  body_ << "    ; unsupported: getfield\n";  break;
-        case ir::Op::GetElem:   body_ << "    ; unsupported: getelem\n";   break;
         case ir::Op::RangeNew:
         case ir::Op::RangeNext: body_ << "    ; unsupported: range\n";     break;
         case ir::Op::DeferPush:
@@ -233,7 +376,6 @@ private:
     // инструкции
 
     void emit_alloca(const ir::Inst& I) {
-        // сллот всегда -  указатель на storage-форму типа.
         body_ << "    " << operand_value(I.result)
               << " = alloca " << ll_type(*ti_, I.type, /*storage=*/true)
               << "\n";
@@ -280,8 +422,6 @@ private:
 
     void emit_ret(const ir::Inst& I, const ir::Function& f) {
         if (I.args.empty()) {
-            // lower_fn эмитит bare ret в fallback'е - для не-void функций
-            // такой блок недостижим (cflow-check гарантирует return).
             if (f.is_main) {
                 body_ << "    ret i32 0\n";
             } else if (is_void_ty(*ti_, f.return_ty)) {
@@ -305,59 +445,40 @@ private:
 
         switch (I.cast_kind) {
         case ir::CastKind::SExt:
-            body_ << "    " << res << " = sext " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = sext " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::ZExt:
-            body_ << "    " << res << " = zext " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = zext " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::Trunc:
-            body_ << "    " << res << " = trunc " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = trunc " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::FPExt:
-            body_ << "    " << res << " = fpext " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = fpext " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::FPTrunc:
-            body_ << "    " << res << " = fptrunc " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = fptrunc " << from << " " << val  << " to " << to << "\n";
             break;
         case ir::CastKind::SIToFP:
-            body_ << "    " << res << " = sitofp " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = sitofp " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::UIToFP:
-            body_ << "    " << res << " = uitofp " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = uitofp " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::FPToSI:
-            body_ << "    " << res << " = fptosi " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = fptosi " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::FPToUI:
-            body_ << "    " << res << " = fptoui " << from << " " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = fptoui " << from << " " << val << " to " << to << "\n";
             break;
         case ir::CastKind::BoolToInt:
-            // bool в SSA - i1; расширяем до целевого целого.
-            body_ << "    " << res << " = zext i1 " << val
-                  << " to " << to << "\n";
+            body_ << "    " << res << " = zext i1 " << val << " to " << to << "\n";
             break;
         case ir::CastKind::IntToBool:
-            body_ << "    " << res << " = icmp ne " << from << " " << val
-                  << ", 0\n";
+            body_ << "    " << res << " = icmp ne " << from << " " << val << ", 0\n";
             break;
         case ir::CastKind::Bitcast:
-            // если тип не изменился - пропускаем,  чтобы не плодить  тривиальные инструкции; иначе явный bitcast
-            if (from == to) {
-                body_ << "    " << res << " = bitcast " << from << " "
-                      << val << " to " << to << "\n";
-            } else {
-                body_ << "    " << res << " = bitcast " << from << " "
-                      << val << " to " << to << "\n";
-            }
+            body_ << "    " << res << " = bitcast " << from << " " << val << " to " << to << "\n";
             break;
         }
     }
@@ -374,8 +495,8 @@ private:
 
     void emit_lnot(const ir::Inst& I) {
         std::string v = operand_value(I.args[0]);
-        body_ << "    " << operand_value(I.result)
-              << " = xor i1 " << v << ", true\n";
+        body_ << "    " << operand_value(I.result)  << " = xor i1 " << v << ", true\n";
+        (void)is_bool_ty;
     }
 
     void emit_arith(const ir::Inst& I) {
@@ -401,7 +522,6 @@ private:
     void emit_cmp(const ir::Inst& I) {
         const char* tool = nullptr;
         const char* pred = nullptr;
-        bool is_fp = ti_->is_float(I.type);
         switch (I.op) {
         case ir::Op::IEq: tool = "icmp"; pred = "eq"; break;
         case ir::Op::INe: tool = "icmp"; pred = "ne"; break;
@@ -421,7 +541,6 @@ private:
         case ir::Op::FGe: tool = "fcmp"; pred = "oge"; break;
         default: tool = "icmp"; pred = "eq"; break;
         }
-        (void)is_fp;
         body_ << "    " << operand_value(I.result)
               << " = " << tool << " " << pred << " "
               << ll_type(*ti_, I.type) << " "
@@ -430,12 +549,65 @@ private:
     }
 
     void emit_logic(const ir::Inst& I) {
-        // and/or - для i1, обычные битовые операции. Короткое замыкание уже развёрнуто в lowering (lower_short_circuit)
-        // эта ветка ловит редкие случаи, когда оптимизатор схлопнул короткое замыкание в bool-bool
         const char* op = (I.op == ir::Op::LAnd) ? "and" : "or";
         body_ << "    " << operand_value(I.result) << " = " << op << " i1 "
               << operand_value(I.args[0]) << ", "
               << operand_value(I.args[1]) << "\n";
+    }
+
+    // строковый литерал: собираем %string-агрегат через insertvalue
+    // %t.0 = insertvalue %string undef, ptr @.str.N, 0
+    // %t   = insertvalue %string %t.0, i64 <len>, 1
+    void emit_strlit(const ir::Inst& I) {
+        if (I.args.empty()) return;
+        const auto& a = I.args[0];
+        uint32_t sid = a.string_id;
+        size_t len = 0;
+        for (const auto& sl : mod_.strings)
+            if (sl.id == sid) { len = sl.value.size(); break; }
+
+        std::string mid = fresh_synth();
+        body_ << "    " << mid
+              << " = insertvalue %string undef, ptr @.str." << sid << ", 0\n";
+        body_ << "    " << operand_value(I.result)
+              << " = insertvalue %string " << mid
+              << ", i64 " << len << ", 1\n";
+    }
+
+    // адрес поля структуры: getelementptr %S, ptr <recv>, i32 0, i32 <idx>
+    void emit_getfield(const ir::Inst& I) {
+        TypeId recv_ty = I.args[0].type;
+        std::string struct_ll = ll_type(*ti_, recv_ty, /*storage=*/true);
+        body_ << "    " << operand_value(I.result)
+              << " = getelementptr " << struct_ll
+              << ", ptr " << operand_value(I.args[0])
+              << ", i32 0, i32 " << I.field_index << "\n";
+    }
+
+    // адрес элемента: getelementptr [N x T], ptr <base>, i32 0, i64 <idx>
+    void emit_getelem(const ir::Inst& I) {
+        TypeId base_ty = I.args[0].type;
+        std::string base_ll = ll_type(*ti_, base_ty, /*storage=*/true);
+        // ширина индекса - для уверенности sext до i64
+        std::string idx = operand_value(I.args[1]);
+        TypeId idx_ty = I.args[1].type;
+        if (idx_ty != sema::kInvalidTypeId && ti_->bit_width(idx_ty) < 64
+            && ti_->is_signed_int(idx_ty)) {
+            std::string ext = fresh_synth();
+            body_ << "    " << ext << " = sext "
+                  << ll_type(*ti_, idx_ty) << " " << idx << " to i64\n";
+            idx = ext;
+        } else if (idx_ty != sema::kInvalidTypeId && ti_->bit_width(idx_ty) < 64
+                   && ti_->is_unsigned_int(idx_ty)) {
+            std::string ext = fresh_synth();
+            body_ << "    " << ext << " = zext "
+                  << ll_type(*ti_, idx_ty) << " " << idx << " to i64\n";
+            idx = ext;
+        }
+        body_ << "    " << operand_value(I.result)
+              << " = getelementptr " << base_ll
+              << ", ptr " << operand_value(I.args[0])
+              << ", i32 0, i64 " << idx << "\n";
     }
 
     //вызовы
@@ -450,12 +622,12 @@ private:
     }
 
     void emit_user_call(const ir::Inst& I) {
-        if (sym_by_source_.empty()) const_cast<Emitter*>(this)->prebuild_symbols();
         std::string sym;
         auto it = sym_by_source_.find(I.callee);
         if (it != sym_by_source_.end()) {
             sym = it->second;
         } else {
+            // внешний/незарегистрированный символ - заявим декларацию
             sym = I.callee;
             for (auto& c : sym) if (c == ':') c = '_';
             std::ostringstream decl;
@@ -498,7 +670,8 @@ private:
         }
     }
 
-    // маршрутизация встроенных print/println/exit/panic/input/len по типу первого аргумента - codegen.md §5.5
+    // маршрутизация встроенных print/println/exit/panic/input/len
+    // codegen.md §5.5
     void emit_builtin_call(const ir::Inst& I) {
         if (I.callee == "print" || I.callee == "println") {
             emit_print(I, /*newline=*/I.callee == "println");
@@ -506,10 +679,35 @@ private:
         }
         if (I.callee == "exit") {
             emit_rt_decl("rt_exit", "void", {"i32"});
-            emit_one_arg_call(I, "rt_exit", "i32", /*needs_zext_bool=*/false);
+            // exit(int32) - аргумент уже i32
+            body_ << "    call void @rt_exit(i32 "
+                  << operand_value(I.args[0]) << ")\n";
             return;
         }
-        // panic / input / len маршрутизация ещё не подключена.
+        if (I.callee == "panic") {
+            // panic(string) - аргумент %string, второй -- номер строки.
+            // пока вызываем напрямую с line = 0 чтобы llc принял IR.
+            emit_rt_decl("rt_panic", "void", {"%string", "i32"});
+            body_ << "    call void @rt_panic(%string "
+                  << operand_value(I.args[0]) << ", i32 0)\n"
+                  << "    unreachable\n";
+            return;
+        }
+        if (I.callee == "input") {
+            emit_rt_decl("rt_input", "%string", {});
+            body_ << "    " << operand_value(I.result)
+                  << " = call %string @rt_input()\n";
+            return;
+        }
+        if (I.callee == "len") {
+            // len(string) -> int32 (sema/init_builtins)
+            //Для массивов используется константа array_size, но текущая sema не  регистрирует len для массивов - этот случай не встречается.
+            emit_rt_decl("rt_strlen", "i32", {"%string"});
+            body_ << "    " << operand_value(I.result)
+                  << " = call i32 @rt_strlen(%string "
+                  << operand_value(I.args[0]) << ")\n";
+            return;
+        }
         body_ << "    ; unsupported: builtin '" << I.callee << "'\n";
     }
 
@@ -573,27 +771,14 @@ private:
             body_ << "    call void @" << sym << "(i32 " << tmp << ")\n";
             return;
         }
-        // строки и прочие агрегатные значения нужно сначала научить эмитить
-        // как %string / по полям - тогда подключится rt_print(ln)_string и др.
-        body_ << "    ; unsupported: "
-              << (newline ? "println" : "print") << " of non-scalar value\n";
-    }
-
-    void emit_one_arg_call(const ir::Inst& I, const std::string& sym,
-                           const std::string& arg_ll_ty,
-                           bool needs_zext_bool) {
-        if (I.args.empty()) {
-            body_ << "    call void @" << sym << "()\n";
+        if (is_string_ty(*ti_, at)) {
+            std::string sym = prefix + std::string("string");
+            emit_rt_decl(sym, "void", {"%string"});
+            body_ << "    call void @" << sym << "(%string " << val << ")\n";
             return;
         }
-        std::string val = operand_value(I.args[0]);
-        if (needs_zext_bool) {
-            std::string tmp = fresh_synth();
-            body_ << "    " << tmp << " = zext i1 " << val
-                  << " to " << arg_ll_ty << "\n";
-            val = tmp;
-        }
-        body_ << "    call void @" << sym << "(" << arg_ll_ty << " " << val << ")\n";
+        body_ << "    ; unsupported: "
+              << (newline ? "println" : "print") << " of non-scalar value\n";
     }
 
     void emit_rt_decl(const std::string& sym, const std::string& ret,
