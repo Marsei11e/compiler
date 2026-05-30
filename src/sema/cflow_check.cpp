@@ -213,7 +213,7 @@ private:
             auto* rs = ast_cast<ReturnStmt>(s);
             if (in_defer()) {
                 diag_.report({diag::Severity::Error, s->loc,
-                              "defer body must not contain return"});
+                              "defer return not allowed: return inside defer body is forbidden"});
             }
             if (rs->value) walk_expr_value(rs->value.get());
             return Term::Diverges;

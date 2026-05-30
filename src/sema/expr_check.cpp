@@ -569,6 +569,9 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
             // перепроверяем аргументы с уточненными типами параметров - правим resolved_type_id у литералов
             for (size_t i = 0; i < ce->args.size(); ++i)
                 check_expr(ce->args[i].get(), result.fn->params[i].type, scope);
+            ce->resolved_param_types.clear();
+            for (const auto& p : result.fn->params)
+                ce->resolved_param_types.push_back(p.type.index);
             ty = result.fn->return_ty;
             break;
         case OverloadStatus::NoMatch:
@@ -626,6 +629,9 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
         auto result = resolve_call(candidates, arg_types, arg_kinds, types_);
         switch (result.status) {
         case OverloadStatus::Resolved:
+            mc->resolved_param_types.clear();
+            for (const auto& p : result.fn->params)
+                mc->resolved_param_types.push_back(p.type.index);
             ty = result.fn->return_ty;
             break;
         case OverloadStatus::NoMatch:
@@ -834,6 +840,16 @@ void Sema::check_stmt(ast::Stmt* stmt, Scope* scope) {
 
     case NodeKind::AssignStmt: {
         auto* as = ast_cast<AssignStmt>(stmt);
+        // Проверка присваивания константе
+        if (as->target->kind == NodeKind::IdentExpr) {
+            auto* ident = ast_cast<IdentExpr>(as->target.get());
+            if (auto* entry = scope->lookup(std::string(ident->name))) {
+                if (auto* vs = std::get_if<VarSymbol>(entry); vs && vs->is_const) {
+                    diag_.report({diag::Severity::Error, as->target->loc,
+                                  "assignment to constant '" + std::string(ident->name) + "'"});
+                }
+            }
+        }
         TypeId lval_ty = check_expr(as->target.get(), kInvalidTypeId, scope);
         TypeId rval_ty = check_expr(as->value.get(),  lval_ty, scope);
         if (lval_ty != kInvalidTypeId && rval_ty != kInvalidTypeId &&

@@ -56,7 +56,10 @@ public:
                 TypeId lt{be->left->resolved_type_id};
                 if (lt != kInvalidTypeId &&
                     (types_.is_signed_int(lt) || types_.is_unsigned_int(lt))) {
-                    report_int_division(e->loc);
+                    // §12.2: эффект @panics при целочисленном / и % - только если делитель
+                    // потенциально нулевой. Ненулевой литерал-делитель никогда не даёт деление на ноль, поэтому эффект @panics отсутствует
+                    bool nonzero_literal = (be->right->kind == NodeKind::IntLit && ast_cast<IntLit>(be->right.get())->data.value != 0);
+                    if (!nonzero_literal) report_int_division(e->loc);
                 }
                 // float / (и невозможный float %) - чистые по A.1
             }

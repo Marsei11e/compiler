@@ -168,6 +168,7 @@ struct Inst {
     CastKind cast_kind{CastKind::Bitcast};  // Cast
     CallKind call_kind{CallKind::User};     // Call
     std::string callee;    // Call (имя функции)
+    std::vector<sema::TypeId> callee_param_types; // Call: сигнатура выбранной перегрузки (для mangling)
     uint32_t field_index{0}; // GetField
     std::string  then_label; // Br/Jmp
     std::string  else_label;// Br

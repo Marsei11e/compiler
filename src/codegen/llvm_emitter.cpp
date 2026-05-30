@@ -157,15 +157,27 @@ private:
     // одно тело может разворачиваться на нескольких выходах, а каждый temp в SSA
     // определяется ровно один раз - поэтому копии переименовываются
     uint32_t next_inline_temp_{0};
-    // сопоставление source_name -> mangled-имя символа: позволяет правильно вызывать пользовательские функции/методы по callee из IR
+    // source_name#сигнатура -> mangled-имя: точное сопоставление, различающее перегрузки
+    std::unordered_map<std::string, std::string> sym_by_sig_;
+    // source_name -> mangled-имя: фолбэк для неперегруженных вызовов (напр. без сигнатуры)
     std::unordered_map<std::string, std::string> sym_by_source_;
-    //cопоставление source_name -> return-тип, чтобы корректно эмитить вызовы
-    std::unordered_map<std::string, TypeId> ret_by_source_;
+
+    // ключ вызова: имя + индексы типов параметров выбранной перегрузки
+    static std::string sig_key(const std::string& name,
+                               const std::vector<TypeId>& ptypes) {
+        std::string k = name;
+        k += '#';
+        for (auto t : ptypes) { k += std::to_string(t.index); k += ','; }
+        return k;
+    }
 
     void prebuild_symbols() {
         for (const auto& fp : mod_.functions) {
+            std::vector<TypeId> ptypes;
+            ptypes.reserve(fp->params.size());
+            for (const auto& p : fp->params) ptypes.push_back(p.type);
+            sym_by_sig_[sig_key(fp->source_name, ptypes)] = compute_symbol(*fp);
             sym_by_source_[fp->source_name] = compute_symbol(*fp);
-            ret_by_source_[fp->source_name] = fp->return_ty;
         }
     }
 
@@ -399,8 +411,8 @@ private:
     // эмиссия функций / блоков
 
     void emit_function(const ir::Function& f) {
-        std::string sym = sym_by_source_[f.source_name];
-        if (sym.empty()) sym = compute_symbol(f);
+        // имя define всегда считаем напрямую: f.params однозначно задают перегрузку
+        std::string sym = compute_symbol(f);
 
         //сигнатура: для main всегда i32, иначе по return_ty.
         std::string ret_ty = f.is_main
@@ -733,8 +745,11 @@ private:
 
     void emit_user_call(const ir::Inst& I) {
         std::string sym;
+        auto sit = sym_by_sig_.find(sig_key(I.callee, I.callee_param_types));
         auto it = sym_by_source_.find(I.callee);
-        if (it != sym_by_source_.end()) {
+        if (sit != sym_by_sig_.end()) {
+            sym = sit->second;
+        } else if (it != sym_by_source_.end()) {
             sym = it->second;
         } else {
             // внешний/незарегистрированный символ - заявим декларацию

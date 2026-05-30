@@ -1275,6 +1275,8 @@ private:
         i.type = ret_ty;
         i.call_kind = kind;
         i.callee = callee;
+        for (uint32_t idx : ce->resolved_param_types)
+            i.callee_param_types.push_back(tid(idx));
         i.loc = ce->loc;
         i.args = std::move(args);
         if (sema_.types().get(ret_ty).kind != TypeKind::Hollow) {
@@ -1309,6 +1311,8 @@ private:
         i.type = ret_ty;
         i.call_kind = CallKind::Method;
         i.callee = callee;
+        for (uint32_t idx : mc->resolved_param_types)
+            i.callee_param_types.push_back(tid(idx));
         i.loc = mc->loc;
         i.args = std::move(args);
         if (sema_.types().get(ret_ty).kind != TypeKind::Hollow) {

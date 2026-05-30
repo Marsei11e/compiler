@@ -243,7 +243,7 @@ std::unique_ptr<VarDecl> Parser::parse_var_decl() {
         type_ann = parse_type();
     }
 
-    expect(TokenKind::Eq, "expected '='");
+    expect(TokenKind::Eq, "variable declaration requires initializer ('=' expected)");
     auto init = parse_expr(); // настоящий разбор выражений
     expect(TokenKind::Semi, "expected ';'");
 

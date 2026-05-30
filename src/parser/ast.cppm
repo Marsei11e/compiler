@@ -361,6 +361,9 @@ struct IndexExpr : Expr {
 struct CallExpr : Expr {
     ExprPtr              callee; // IdentExpr, NamespaceAccess или раскрытый pipe
     std::vector<ExprPtr> args;
+    // типы параметров выбранной перегрузки (TypeId.index); заполняет sema -
+    // нужно codegen-у для mangling, иначе перегрузки схлопываются по имени.
+    std::vector<uint32_t> resolved_param_types;
     CallExpr(diag::SourceLocation l, ExprPtr c, std::vector<ExprPtr> a)
         : Expr(NodeKind::CallExpr, l), callee(std::move(c)), args(std::move(a)) {}
 };
@@ -369,6 +372,7 @@ struct MethodCallExpr : Expr {
     ExprPtr              receiver;
     std::string          method_name;
     std::vector<ExprPtr> args;
+    std::vector<uint32_t> resolved_param_types; // как у CallExpr
     MethodCallExpr(diag::SourceLocation l, ExprPtr r, std::string m, std::vector<ExprPtr> a)
         : Expr(NodeKind::MethodCallExpr, l), receiver(std::move(r)),
           method_name(std::move(m)), args(std::move(a)) {}

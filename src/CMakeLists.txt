@@ -234,6 +234,13 @@ target_include_directories(mycc_test_s20 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(mycc_test_s20 PRIVATE -Wall -Wextra)
 add_test(NAME s20 COMMAND mycc_test_s20)
 
+add_executable(mycc_test_s21
+    tests/unit/test_s21.cpp
+)
+target_include_directories(mycc_test_s21 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(mycc_test_s21 PRIVATE -Wall -Wextra)
+add_test(NAME s21 COMMAND mycc_test_s21 $<TARGET_FILE:myc> ${TESTS_DIR})
+
 add_test(NAME diag   COMMAND mycc_test)
 add_test(NAME lexer  COMMAND mycc_test_lexer ${PARTICLES_LANG})
 add_test(NAME ast    COMMAND mycc_test_ast)
