@@ -33,10 +33,6 @@ bool is_empty_module(const ir::Module& m) {
         && m.strings.empty() && m.globals.empty();
 }
 
-bool is_terminator(ir::Op op) {
-    return op == ir::Op::Ret || op == ir::Op::Jmp || op == ir::Op::Br;
-}
-
 std::string hex_double(double v) {
     union { double d; uint64_t b; } u; u.d = v;
     char buf[32];
@@ -155,6 +151,12 @@ private:
     std::unordered_set<uint32_t>    struct_types_seen_;
     std::vector<TypeId>             struct_types_order_;
     uint32_t synth_id_{0};
+    // активные defer-тела текущей функции: id -> блок defer.body.<id>
+    std::unordered_map<uint32_t, const ir::BasicBlock*> defer_bodies_;
+    // следующий свободный %t-id для копий инструкций при инлайне defer-тел:
+    // одно тело может разворачиваться на нескольких выходах, а каждый temp в SSA
+    // определяется ровно один раз - поэтому копии переименовываются
+    uint32_t next_inline_temp_{0};
     // сопоставление source_name -> mangled-имя символа: позволяет правильно вызывать пользовательские функции/методы по callee из IR
     std::unordered_map<std::string, std::string> sym_by_source_;
     //cопоставление source_name -> return-тип, чтобы корректно эмитить вызовы
@@ -300,6 +302,100 @@ private:
         return "<?>";
     }
 
+    // defer: разворачивание (codegen.md §6.14, semantics §7.8/§10)
+
+    void build_defer_bodies(const ir::Function& f) {
+        defer_bodies_.clear();
+        std::unordered_map<std::string, const ir::BasicBlock*> by_label;
+        for (const auto& bb : f.blocks) by_label[bb.label] = &bb;
+        for (const auto& de : f.defer_table) {
+            auto it = by_label.find(de.body_label);
+            if (it != by_label.end()) defer_bodies_[de.id] = it->second;
+        }
+        // свежие temp-id начинаем за максимумом существующих
+        uint32_t max_id = 0;
+        for (const auto& bb : f.blocks)
+            for (const auto& I : bb.insts) {
+                if (I.result.kind == ir::Operand::Kind::Temp && I.result.temp_id > max_id)
+                    max_id = I.result.temp_id;
+                for (const auto& a : I.args)
+                    if (a.kind == ir::Operand::Kind::Temp && a.temp_id > max_id)
+                        max_id = a.temp_id;
+            }
+        next_inline_temp_ = max_id + 1;
+    }
+
+    // DeferEmit несёт список defer-id в LIFO-порядке (выставлен lowering'ом).
+    void inline_defers(const ir::Inst& I, const ir::Function& f) {
+        for (const auto& a : I.args) {
+            if (a.kind != ir::Operand::Kind::ConstInt) continue;
+            auto it = defer_bodies_.find(static_cast<uint32_t>(a.cu));
+            if (it != defer_bodies_.end()) inline_defer_body(*it->second, f);
+        }
+    }
+
+    void inline_defer_body(const ir::BasicBlock& body, const ir::Function& f) {
+        // копируем инструкции тела defer с переименованием temp-результатов,
+        // чтобы одно тело можно было развернуть на нескольких выходах (SSA).
+        std::unordered_map<uint32_t, uint32_t> remap;
+        for (const auto& src : body.insts) {
+            // синтетический терминатор тела defer не эмитим
+            if (src.op == ir::Op::Jmp && src.then_label.starts_with("defer.return"))
+                continue;
+            ir::Inst copy = src;
+            if (copy.result.kind == ir::Operand::Kind::Temp) {
+                uint32_t nid = next_inline_temp_++;
+                remap[copy.result.temp_id] = nid;
+                copy.result.temp_id = nid;
+            }
+            for (auto& a : copy.args) {
+                if (a.kind == ir::Operand::Kind::Temp) {
+                    auto r = remap.find(a.temp_id);
+                    if (r != remap.end()) a.temp_id = r->second;
+                }
+            }
+            emit_inst(copy, f);
+        }
+    }
+
+    // расширение целочисленного операнда до i64 для rt_check_*
+    std::string ext_to_i64(const ir::Operand& o, TypeId ty, bool sign) {
+        if (o.kind == ir::Operand::Kind::ConstInt)
+            return std::to_string(o.ci); // известная величина - i64-литерал
+        std::string v = operand_value(o);
+        if (ty != sema::kInvalidTypeId && ti_->bit_width(ty) < 64) {
+            std::string t = fresh_synth();
+            body_ << "    " << t << " = " << (sign ? "sext" : "zext") << " "
+                  << ll_type(*ti_, ty) << " " << v << " to i64\n";
+            return t;
+        }
+        return v;
+    }
+
+    void emit_div_zero_check(const ir::Inst& I) {
+        const ir::Operand& d = I.args[1];
+        if (d.kind == ir::Operand::Kind::ConstInt) {
+            bool is_zero = ti_->is_unsigned_int(I.type) ? (d.cu == 0) : (d.ci == 0);
+            if (!is_zero) return; // делитель - известная ненулевая константа
+        }
+        std::string ext = ext_to_i64(d, I.type, ti_->is_signed_int(I.type));
+        emit_rt_decl("rt_check_div_zero", "void", {"i64", "i32"});
+        body_ << "    call void @rt_check_div_zero(i64 " << ext
+              << ", i32 " << static_cast<int>(I.loc.line) << ")\n";
+    }
+
+    void emit_bounds_check(const ir::Inst& I, const std::string& idx_i64, size_t length) {
+        const ir::Operand& idx = I.args[1];
+        if (idx.kind == ir::Operand::Kind::ConstInt) {
+            int64_t v = idx.ci;
+            if (v >= 0 && static_cast<size_t>(v) < length) return; // в пределах
+        }
+        emit_rt_decl("rt_check_bounds", "void", {"i64", "i64", "i32"});
+        body_ << "    call void @rt_check_bounds(i64 " << idx_i64
+              << ", i64 " << length
+              << ", i32 " << static_cast<int>(I.loc.line) << ")\n";
+    }
+
     // эмиссия функций / блоков
 
     void emit_function(const ir::Function& f) {
@@ -318,16 +414,23 @@ private:
         }
         body_ << ") {\n";
 
+        build_defer_bodies(f);
+
         for (const auto& bb : f.blocks) {
+            // defer.body.* - оркан-блоки, инлайнятся при DeferEmit; не эмитим их
+            // как обычные. defer.resume.* - реальные блоки потока, эмитятся.
             if (bb.label.starts_with("defer.body.")) continue;
-            if (bb.label.starts_with("defer.resume")) continue;
 
             body_ << bb.label << ":\n";
-            for (const auto& ins : bb.insts)
-                emit_inst(ins, f);
+            // как только инструкция произвела терминатор блока (ret/br/unreachable,
+            // в т.ч. из panic/exit), прекращаем эмиссию остатка блока: всё после
+            // терминатора в одном базовом блоке - невалидный LLVM IR.
+            bool terminated = false;
+            for (const auto& ins : bb.insts) {
+                if (emit_inst(ins, f)) { terminated = true; break; }
+            }
 
             // гарантия терминатора: LLVM требует, чтобы каждый блок завершался
-            bool terminated = !bb.insts.empty() && is_terminator(bb.insts.back().op);
             if (!terminated) {
                 if (!f.is_main && is_void_ty(*ti_, f.return_ty))
                     body_ << "    ret void\n";
@@ -338,18 +441,19 @@ private:
         body_ << "}\n";
     }
 
-    void emit_inst(const ir::Inst& I, const ir::Function& f) {
-        switch (I.op) { 
+    // возвращает true, если инструкция произвела терминатор базового блока
+    bool emit_inst(const ir::Inst& I, const ir::Function& f) {
+        switch (I.op) {
         case ir::Op::Alloca:    emit_alloca(I); break;
         case ir::Op::Load:      emit_load(I); break;
         case ir::Op::Store:     emit_store(I); break;
-        case ir::Op::Jmp:       emit_jmp(I); break;
-        case ir::Op::Br:        emit_br(I); break;
-        case ir::Op::Ret:       emit_ret(I, f); break;
+        case ir::Op::Jmp:       emit_jmp(I); return true;
+        case ir::Op::Br:        emit_br(I); return true;
+        case ir::Op::Ret:       emit_ret(I, f); return true;
         case ir::Op::Cast:      emit_cast(I); break;
         case ir::Op::Neg:       emit_neg(I); break;
         case ir::Op::LNot:      emit_lnot(I); break;
-        case ir::Op::Call:      emit_call(I); break;
+        case ir::Op::Call:      return emit_call(I);
         case ir::Op::StrLit:    emit_strlit(I); break;
         case ir::Op::GetField:  emit_getfield(I); break;
         case ir::Op::GetElem:   emit_getelem(I); break;
@@ -368,9 +472,10 @@ private:
 
         case ir::Op::RangeNew:
         case ir::Op::RangeNext: body_ << "    ; unsupported: range\n";     break;
-        case ir::Op::DeferPush:
-        case ir::Op::DeferEmit: body_ << "    ; unsupported: defer\n";     break;
+        case ir::Op::DeferPush: break; // компайл-тайм маркер регистрации - кода нет
+        case ir::Op::DeferEmit: inline_defers(I, f); break;
         }
+        return false;
     }
 
     // инструкции
@@ -411,6 +516,11 @@ private:
     }
 
     void emit_jmp(const ir::Inst& I) {
+        // прыжок на синтетическую метку конца defer-тела не имеет адресата вне инлайна (бывает лишь у defer с управляющим потоком - вне покрытия тестов)
+        if (I.then_label.starts_with("defer.return")) {
+            body_ << "    unreachable\n";
+            return;
+        }
         body_ << "    br label %" << I.then_label << "\n";
     }
 
@@ -500,6 +610,11 @@ private:
     }
 
     void emit_arith(const ir::Inst& I) {
+        // целочисленные деление/остаток - проверка делителя на ноль (codegen.md §6.5)
+        if (I.op == ir::Op::SDiv || I.op == ir::Op::UDiv ||
+            I.op == ir::Op::SRem || I.op == ir::Op::URem) {
+            emit_div_zero_check(I);
+        }
         const char* opcode = nullptr;
         bool is_fp = ti_->is_float(I.type);
         switch (I.op) {
@@ -588,22 +703,15 @@ private:
     void emit_getelem(const ir::Inst& I) {
         TypeId base_ty = I.args[0].type;
         std::string base_ll = ll_type(*ti_, base_ty, /*storage=*/true);
-        // ширина индекса - для уверенности sext до i64
-        std::string idx = operand_value(I.args[1]);
         TypeId idx_ty = I.args[1].type;
-        if (idx_ty != sema::kInvalidTypeId && ti_->bit_width(idx_ty) < 64
-            && ti_->is_signed_int(idx_ty)) {
-            std::string ext = fresh_synth();
-            body_ << "    " << ext << " = sext "
-                  << ll_type(*ti_, idx_ty) << " " << idx << " to i64\n";
-            idx = ext;
-        } else if (idx_ty != sema::kInvalidTypeId && ti_->bit_width(idx_ty) < 64
-                   && ti_->is_unsigned_int(idx_ty)) {
-            std::string ext = fresh_synth();
-            body_ << "    " << ext << " = zext "
-                  << ll_type(*ti_, idx_ty) << " " << idx << " to i64\n";
-            idx = ext;
+        std::string idx = ext_to_i64(I.args[1], idx_ty, ti_->is_signed_int(idx_ty));
+
+        // проверка границ для индексации массива (codegen.md §6.4)
+        if (base_ty != sema::kInvalidTypeId
+            && ti_->get(base_ty).kind == TypeKind::Array) {
+            emit_bounds_check(I, idx, ti_->get(base_ty).array_size);
         }
+
         body_ << "    " << operand_value(I.result)
               << " = getelementptr " << base_ll
               << ", ptr " << operand_value(I.args[0])
@@ -612,13 +720,15 @@ private:
 
     //вызовы
 
-    void emit_call(const ir::Inst& I) {
+    // true, если вызов завершился терминатором (panic/exit -> unreachable)
+    bool emit_call(const ir::Inst& I) {
         switch (I.call_kind) {
         case ir::CallKind::User:   emit_user_call(I); break;
         case ir::CallKind::Method: emit_user_call(I); break;
         case ir::CallKind::Runtime: emit_runtime_call(I); break;
-        case ir::CallKind::Builtin: emit_builtin_call(I); break;
+        case ir::CallKind::Builtin: return emit_builtin_call(I);
         }
+        return false;
     }
 
     void emit_user_call(const ir::Inst& I) {
@@ -672,32 +782,37 @@ private:
 
     // маршрутизация встроенных print/println/exit/panic/input/len
     // codegen.md §5.5
-    void emit_builtin_call(const ir::Inst& I) {
+    // true, если builtin завершился терминатором блока (panic/exit -> unreachable)
+    bool emit_builtin_call(const ir::Inst& I) {
         if (I.callee == "print" || I.callee == "println") {
             emit_print(I, /*newline=*/I.callee == "println");
-            return;
+            return false;
         }
         if (I.callee == "exit") {
+            // exit(int32) noreturn (semantics §9): defer-ы НЕ выполняются.
+            // unreachable после вызова - канонический LLVM-паттерн для noreturn.
             emit_rt_decl("rt_exit", "void", {"i32"});
-            // exit(int32) - аргумент уже i32
             body_ << "    call void @rt_exit(i32 "
-                  << operand_value(I.args[0]) << ")\n";
-            return;
+                  << operand_value(I.args[0]) << ")\n"
+                  << "    unreachable\n";
+            return true;
         }
         if (I.callee == "panic") {
-            // panic(string) - аргумент %string, второй -- номер строки.
-            // пока вызываем напрямую с line = 0 чтобы llc принял IR.
+            // panic(string) - аргумент %string, второй - номер строки.
+            // defer-ы активных скопов уже развёрнуты lowering'ом через DeferEmit
+            // ПЕРЕД этим вызовом (semantics §10).
             emit_rt_decl("rt_panic", "void", {"%string", "i32"});
             body_ << "    call void @rt_panic(%string "
-                  << operand_value(I.args[0]) << ", i32 0)\n"
+                  << operand_value(I.args[0]) << ", i32 "
+                  << static_cast<int>(I.loc.line) << ")\n"
                   << "    unreachable\n";
-            return;
+            return true;
         }
         if (I.callee == "input") {
             emit_rt_decl("rt_input", "%string", {});
             body_ << "    " << operand_value(I.result)
                   << " = call %string @rt_input()\n";
-            return;
+            return false;
         }
         if (I.callee == "len") {
             // len(string) -> int32 (sema/init_builtins)
@@ -706,9 +821,10 @@ private:
             body_ << "    " << operand_value(I.result)
                   << " = call i32 @rt_strlen(%string "
                   << operand_value(I.args[0]) << ")\n";
-            return;
+            return false;
         }
         body_ << "    ; unsupported: builtin '" << I.callee << "'\n";
+        return false;
     }
 
     void emit_print(const ir::Inst& I, bool newline) {

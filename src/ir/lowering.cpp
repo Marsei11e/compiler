@@ -1262,6 +1262,12 @@ private:
             callee = "?call?";
         }
 
+        // panic выполняет defer-ы всех активных скопов перед завершением (semantics §10);
+        // exit - не выполняет (§9). DeferEmit ставится после вычисления аргументов, но до самого вызова rt_panic.
+        if (kind == CallKind::Builtin && callee == "panic") {
+            emit_defer_emit_for_scopes(0);
+        }
+
         TypeId ret_ty = tid_of(ce);
         Operand res;
         Inst i;
