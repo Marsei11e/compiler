@@ -240,7 +240,13 @@ struct NamespaceSymbol {
     Scope*      scope{nullptr};
 };
 
-using ScopeEntry = std::variant<VarSymbol, OverloadSet, StructSymbol, NamespaceSymbol>;
+struct TypeAliasSymbol {
+    std::string name;
+    TypeId      type{kInvalidTypeId};
+};
+
+using ScopeEntry = std::variant<VarSymbol, OverloadSet, StructSymbol, NamespaceSymbol,
+                                TypeAliasSymbol>;
 
 class Scope {
 public:
@@ -278,6 +284,12 @@ public:
     }
 
     bool declare(const std::string& name, NamespaceSymbol sym) {
+        if (entries_.count(name)) return false;
+        entries_.emplace(name, std::move(sym));
+        return true;
+    }
+
+    bool declare(const std::string& name, TypeAliasSymbol sym) {
         if (entries_.count(name)) return false;
         entries_.emplace(name, std::move(sym));
         return true;

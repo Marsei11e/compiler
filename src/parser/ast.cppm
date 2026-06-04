@@ -360,11 +360,10 @@ struct IndexExpr : Expr {
 
 struct CallExpr : Expr {
     ExprPtr              callee; // IdentExpr, NamespaceAccess или раскрытый pipe
-    std::vector<ExprPtr> args;
-    // типы параметров выбранной перегрузки (TypeId.index); заполняет sema -
-    // нужно codegen-у для mangling, иначе перегрузки схлопываются по имени.
-    std::vector<uint32_t> resolved_param_types;
-    CallExpr(diag::SourceLocation l, ExprPtr c, std::vector<ExprPtr> a)
+    std::vector<ExprPtr> args;                                                                                                                                                                                      // типы параметров выбранной перегрузки (TypeId.index); заполняет sema -
+    std::vector<uint32_t> resolved_param_types;                                                                                                                                                  // нужно codegen-у для mangling, иначе перегрузки схлопываются по имени.
+    FnDecl* resolved_decl{nullptr};                                                                                                                                                                                 // выбранная перегрузка (заполняет sema): нужна lowering-у, чтобы получить
+    CallExpr(diag::SourceLocation l, ExprPtr c, std::vector<ExprPtr> a)                                                                                                             // полное квалифицированное имя - неквалифицированный вызов соседа по namespace иначе понизился бы в голое имя.
         : Expr(NodeKind::CallExpr, l), callee(std::move(c)), args(std::move(a)) {}
 };
 

@@ -118,7 +118,7 @@ void Sema::check_fn_body(ast::FnDecl* fn, Scope* parent) {
         VarSymbol vs;
         vs.name           = param.name;
         vs.type           = pt;
-        vs.is_const       = true;
+        vs.is_const       = false;  // параметры - копии по значению, переприсваиваемы
         vs.is_initialized = true;
         fn_scope->declare(param.name, std::move(vs));
     }
@@ -572,6 +572,7 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
             ce->resolved_param_types.clear();
             for (const auto& p : result.fn->params)
                 ce->resolved_param_types.push_back(p.type.index);
+            ce->resolved_decl = result.fn->decl;
             ty = result.fn->return_ty;
             break;
         case OverloadStatus::NoMatch:
@@ -923,17 +924,24 @@ void Sema::check_stmt(ast::Stmt* stmt, Scope* scope) {
 
     case NodeKind::ReturnStmt: {
         auto* rs = ast_cast<ReturnStmt>(stmt);
+        bool ret_is_hollow = (current_fn_return_ty_ == kHollowTy);
         if (rs->value) {
             TypeId val_ty = check_expr(rs->value.get(), current_fn_return_ty_, scope);
-            if (val_ty != kInvalidTypeId &&
-                current_fn_return_ty_ != kInvalidTypeId &&
-                current_fn_return_ty_ != kHollowTy &&
-                val_ty != current_fn_return_ty_) {
+            if (current_fn_return_ty_ == kInvalidTypeId) {
+                // тип возврата не разрешился — не каскадируем
+            } else if (ret_is_hollow) {
+                diag_.report({diag::Severity::Error, rs->value->loc,
+                              "returning a value from a function with return type 'hollow'"});
+            } else if (val_ty != kInvalidTypeId && val_ty != current_fn_return_ty_) {
                 diag_.report({diag::Severity::Error, rs->value->loc,
                               "return type mismatch: expected '" +
                               std::string(types_.display_name(current_fn_return_ty_)) +
                               "', got '" + std::string(types_.display_name(val_ty)) + "'"});
             }
+        } else if (current_fn_return_ty_ != kInvalidTypeId && !ret_is_hollow) {
+            diag_.report({diag::Severity::Error, rs->loc,
+                          "return without a value in function returning '" +
+                          std::string(types_.display_name(current_fn_return_ty_)) + "'"});
         }
         break;
     }

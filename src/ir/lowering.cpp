@@ -5,6 +5,7 @@ module;
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -37,9 +38,35 @@ public:
         mod->types = &sema_.types();
         mod_ = mod.get();
         std::vector<FnScopeEntry> empty_scopes;
+        // пред-проход: имя каждой функции -> её source_name; нужно для вызовов
+        // вперёд и неквалифицированных вызовов внутри namespace
+        for (auto& d : prog.decls) collect_fn_sources(d.get(), /*prefix=*/"");
         for (auto& d : prog.decls)
             lower_top_decl(d.get(), /*ns_prefix=*/"", empty_scopes);
         return mod;
+    }
+
+    void collect_fn_sources(Decl* d, const std::string& prefix) {
+        switch (d->kind) {
+        case NodeKind::FnDecl: {
+            auto* fn = ast_cast<FnDecl>(d);
+            decl_to_source_[fn] = prefix + fn->name;
+            break;
+        }
+        case NodeKind::ImplBlock: {
+            auto* impl = ast_cast<ImplBlock>(d);
+            std::string p = prefix + impl->type_name + "::";
+            for (auto& m : impl->methods) decl_to_source_[&m] = p + m.name;
+            break;
+        }
+        case NodeKind::NamespaceDecl: {
+            auto* ns = ast_cast<NamespaceDecl>(d);
+            std::string p = prefix + ns->name + "::";
+            for (auto& nd : ns->decls) collect_fn_sources(nd.get(), p);
+            break;
+        }
+        default: break;
+        }
     }
 
 private:
@@ -71,6 +98,23 @@ private:
         if (bb.insts.empty()) return false;
         Op op = bb.insts.back().op;
         return op == Op::Ret || op == Op::Jmp || op == Op::Br;
+    }
+
+    // выделяет alloca-слот с уникальным в пределах функции LLVM-именем и
+    // привязывает source-имя -> слот в named_slots_. source-имена могут
+    // повторяться (shadowing, параметр vs локальная), а имена значений в
+    // функции обязаны быть уникальны - поэтому к .slot добавляем счётчик.
+    Operand declare_slot(const std::string& src_name, TypeId t,
+                         diag::SourceLocation loc) {
+        std::string base = src_name + ".slot";
+        std::string slot_name = base;
+        while (!used_slot_names_.insert(slot_name).second)
+            slot_name = base + "." + std::to_string(next_slot_id_++);
+        Operand slot = named(slot_name, t);
+        Inst a; a.op = Op::Alloca; a.type = t; a.result = slot; a.loc = loc;
+        emit(std::move(a));
+        named_slots_[src_name] = slot;
+        return slot;
     }
 
     // верхний уровень
@@ -180,6 +224,8 @@ private:
         next_temp_id_  = 0;
         next_label_id_= 0;
         next_defer_id_ = 0;
+        next_slot_id_  = 0;
+        used_slot_names_.clear();
 
         for (auto& p : fn->params) {
             FnParam fp;
@@ -192,22 +238,15 @@ private:
 
         // выделяем слоты под параметры и сразу сохраняем в них
         for (auto& p : func->params) {
-            Inst alloc;
-            alloc.op = Op::Alloca;
-            alloc.type = p.type;
-            alloc.result = named(p.name + ".slot", p.type);
-            alloc.loc = fn->loc;
-            emit(std::move(alloc));
+            Operand slot = declare_slot(p.name, p.type, fn->loc);
 
             Inst st;
             st.op = Op::Store;
             st.type = p.type;
             st.args.push_back(named(p.name, p.type)); // параметр в SSA-стиле
-            st.args.push_back(named(p.name + ".slot", p.type));
+            st.args.push_back(slot);
             st.loc = fn->loc;
             emit(std::move(st));
-
-            named_slots_[p.name] = named(p.name + ".slot", p.type);
         }
 
         defer_scopes_.emplace_back();    // function-body scope
@@ -255,9 +294,12 @@ private:
         }
         case NodeKind::NamedTypeRef: {
             auto* n = static_cast<const NamedTypeRef*>(node);
-            if (auto* ent = sema_.global_scope().lookup(n->name))
+            if (auto* ent = sema_.global_scope().lookup(n->name)) {
                 if (auto* ss = std::get_if<sema::StructSymbol>(ent))
                     return ss->type_id;
+                if (auto* as = std::get_if<sema::TypeAliasSymbol>(ent))
+                    return as->type;
+            }
             return kInvalidTypeId;
         }
         case NodeKind::NamespacedTypeRef: {
@@ -265,9 +307,12 @@ private:
             if (auto* ent = sema_.global_scope().lookup(nt->ns))
                 if (auto* ns_sym = std::get_if<sema::NamespaceSymbol>(ent))
                     if (ns_sym->scope)
-                        if (auto* mem = ns_sym->scope->lookup_local(nt->name))
+                        if (auto* mem = ns_sym->scope->lookup_local(nt->name)) {
                             if (auto* ss = std::get_if<sema::StructSymbol>(mem))
                                 return ss->type_id;
+                            if (auto* as = std::get_if<sema::TypeAliasSymbol>(mem))
+                                return as->type;
+                        }
             return kInvalidTypeId;
         }
         default: return kInvalidTypeId;
@@ -350,14 +395,7 @@ private:
         if (ds->decl->kind == NodeKind::VarDecl) {
             auto* vd = ast_cast<VarDecl>(ds->decl.get());
             TypeId t = vd->init ? tid_of(vd->init.get()) : kInvalidTypeId;
-            // слот alloca
-            Inst a;
-            a.op = Op::Alloca;
-            a.type = t;
-            a.result = named(vd->name + ".slot", t);
-            a.loc = vd->loc;
-            emit(std::move(a));
-            named_slots_[vd->name] = named(vd->name + ".slot", t);
+            Operand slot = declare_slot(vd->name, t, vd->loc);
             // сохраняем инициализатор
             if (vd->init) {
                 Operand v = lower_expr(vd->init.get());
@@ -365,27 +403,21 @@ private:
                 st.op = Op::Store;
                 st.type = t;
                 st.args.push_back(std::move(v));
-                st.args.push_back(named(vd->name + ".slot", t));
+                st.args.push_back(slot);
                 st.loc = vd->loc;
                 emit(std::move(st));
             }
         } else if (ds->decl->kind == NodeKind::ConstDecl) {
             auto* cd = ast_cast<ConstDecl>(ds->decl.get());
             TypeId t = cd->init ? tid_of(cd->init.get()) : kInvalidTypeId;
-            Inst a;
-            a.op = Op::Alloca;
-            a.type = t;
-            a.result = named(cd->name + ".slot", t);
-            a.loc = cd->loc;
-            emit(std::move(a));
-            named_slots_[cd->name] = named(cd->name + ".slot", t);
+            Operand slot = declare_slot(cd->name, t, cd->loc);
             if (cd->init) {
                 Operand v = lower_expr(cd->init.get());
                 Inst st;
                 st.op = Op::Store;
                 st.type = t;
                 st.args.push_back(std::move(v));
-                st.args.push_back(named(cd->name + ".slot", t));
+                st.args.push_back(slot);
                 st.loc = cd->loc;
                 emit(std::move(st));
             }
@@ -668,6 +700,11 @@ private:
             store_at(end_slot, ev, elem_ty, fs->loc);
         }
 
+        // слот переменной цикла выносим в пре-хедер: alloca внутри тела
+        // выделял бы новый слот на каждой итерации (рост стека)
+        Operand var_slot = declare_slot(fs->var_name, elem_ty, fs->var_loc);
+        std::string step_l = fresh_label("for.step");
+
         Inst j; j.op = Op::Jmp; j.then_label = cond_l; j.loc = fs->loc;
         emit(std::move(j));
 
@@ -690,39 +727,38 @@ private:
         br.then_label = body_l; br.else_label = end_l;
         emit(std::move(br));
 
-        // тело: привязываем переменную цикла к cur, выполняем тело, инкрементируем cur
+        // тело: привязываем переменную цикла к cur, выполняем тело
         start_block(body_l);
-        Operand var_slot = named(fs->var_name + ".slot", elem_ty);
-        {
-            Inst a; a.op = Op::Alloca; a.type = elem_ty; a.result = var_slot;
-            a.loc = fs->var_loc; emit(std::move(a));
-        }
-        named_slots_[fs->var_name] = var_slot;
-
         Operand cur_v2 = load_from(cur_slot, elem_ty, fs->loc);
         store_at(var_slot, cur_v2, elem_ty, fs->loc);
 
-        loop_stack_.push_back({cond_l, end_l, defer_scopes_.size()});
+        // continue ведёт на step (инкремент), а не на cond - иначе cur не
+        // увеличивается и цикл зацикливается
+        loop_stack_.push_back({step_l, end_l, defer_scopes_.size()});
         lower_expr(fs->body.get());
         loop_stack_.pop_back();
 
-        named_slots_.erase(fs->var_name);
-
         if (!block_terminated()) {
-            // cur += 1
-            Operand cur_v3 = load_from(cur_slot, elem_ty, fs->loc);
-            Operand one = const_int(1, elem_ty);
-            Operand inc = new_temp(elem_ty);
-            Inst add;
-            add.op = Op::Add; add.type = elem_ty;
-            add.result = inc;
-            add.args.push_back(cur_v3); add.args.push_back(one);
-            add.loc = fs->loc;
-            emit(std::move(add));
-            store_at(cur_slot, inc, elem_ty, fs->loc);
-            Inst jb; jb.op = Op::Jmp; jb.then_label = cond_l; jb.loc = fs->loc;
+            Inst jb; jb.op = Op::Jmp; jb.then_label = step_l; jb.loc = fs->loc;
             emit(std::move(jb));
         }
+
+        named_slots_.erase(fs->var_name);
+
+        // шаг: cur += 1; назад к условию
+        start_block(step_l);
+        Operand cur_v3 = load_from(cur_slot, elem_ty, fs->loc);
+        Operand one = const_int(1, elem_ty);
+        Operand inc = new_temp(elem_ty);
+        Inst add;
+        add.op = Op::Add; add.type = elem_ty;
+        add.result = inc;
+        add.args.push_back(cur_v3); add.args.push_back(one);
+        add.loc = fs->loc;
+        emit(std::move(add));
+        store_at(cur_slot, inc, elem_ty, fs->loc);
+        Inst jb; jb.op = Op::Jmp; jb.then_label = cond_l; jb.loc = fs->loc;
+        emit(std::move(jb));
 
         start_block(end_l);
     }
@@ -746,6 +782,10 @@ private:
 
         // материализуем операнд массива в слот чтобы взять адрес
         Operand arr_addr = lower_lvalue(fs->range_expr.get());
+
+        // слот переменной цикла - в пре-хедер (alloca не должна быть в теле)
+        Operand var_slot = declare_slot(fs->var_name, elem_ty, fs->var_loc);
+        std::string step_l = fresh_label("for.step");
 
         Inst j; j.op = Op::Jmp; j.then_label = cond_l; j.loc = fs->loc;
         emit(std::move(j));
@@ -779,32 +819,32 @@ private:
             ld.result = elem_v; ld.args.push_back(elem_addr); ld.loc = fs->loc;
             emit(std::move(ld));
         }
-        Operand var_slot = named(fs->var_name + ".slot", elem_ty);
-        {
-            Inst a; a.op = Op::Alloca; a.type = elem_ty; a.result = var_slot;
-            a.loc = fs->var_loc; emit(std::move(a));
-        }
-        named_slots_[fs->var_name] = var_slot;
         store_at(var_slot, elem_v, elem_ty, fs->loc);
 
-        loop_stack_.push_back({cond_l, end_l, defer_scopes_.size()});
+        loop_stack_.push_back({step_l, end_l, defer_scopes_.size()});
         lower_expr(fs->body.get());
         loop_stack_.pop_back();
 
-        named_slots_.erase(fs->var_name);
-
         if (!block_terminated()) {
-            Operand i_v2 = load_from(idx_slot, i64_ty, fs->loc);
-            Operand inc = new_temp(i64_ty);
-            Inst add; add.op = Op::Add; add.type = i64_ty;
-            add.result = inc;
-            add.args.push_back(i_v2); add.args.push_back(const_int(1, i64_ty));
-            add.loc = fs->loc;
-            emit(std::move(add));
-            store_at(idx_slot, inc, i64_ty, fs->loc);
-            Inst jb; jb.op = Op::Jmp; jb.then_label = cond_l; jb.loc = fs->loc;
+            Inst jb; jb.op = Op::Jmp; jb.then_label = step_l; jb.loc = fs->loc;
             emit(std::move(jb));
         }
+
+        named_slots_.erase(fs->var_name);
+
+        // шаг: idx += 1; назад к условию (цель continue)
+        start_block(step_l);
+        Operand i_v2 = load_from(idx_slot, i64_ty, fs->loc);
+        Operand inc = new_temp(i64_ty);
+        Inst add; add.op = Op::Add; add.type = i64_ty;
+        add.result = inc;
+        add.args.push_back(i_v2); add.args.push_back(const_int(1, i64_ty));
+        add.loc = fs->loc;
+        emit(std::move(add));
+        store_at(idx_slot, inc, i64_ty, fs->loc);
+        Inst jb; jb.op = Op::Jmp; jb.then_label = cond_l; jb.loc = fs->loc;
+        emit(std::move(jb));
+
         start_block(end_l);
     }
 
@@ -1262,6 +1302,13 @@ private:
             callee = "?call?";
         }
 
+        // если sema разрешила вызов в конкретную функцию, берём её полное
+        // квалифицированное имя - голое имя не различает соседей по namespace
+        if (kind == CallKind::User && ce->resolved_decl) {
+            auto it = decl_to_source_.find(ce->resolved_decl);
+            if (it != decl_to_source_.end()) callee = it->second;
+        }
+
         // panic выполняет defer-ы всех активных скопов перед завершением (semantics §10);
         // exit - не выполняет (§9). DeferEmit ставится после вычисления аргументов, но до самого вызова rt_panic.
         if (kind == CallKind::Builtin && callee == "panic") {
@@ -1494,9 +1541,12 @@ private:
     Function* fn_{nullptr};
 
     std::unordered_map<std::string, Operand> named_slots_;
+    std::unordered_set<std::string> used_slot_names_;
+    std::unordered_map<const FnDecl*, std::string> decl_to_source_;
     uint32_t next_temp_id_{0};
     uint32_t next_label_id_{0};
     uint32_t next_defer_id_{0};
+    uint32_t next_slot_id_{0};
 
     std::vector<std::vector<uint32_t>> defer_scopes_;
 

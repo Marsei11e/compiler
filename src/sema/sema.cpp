@@ -196,6 +196,8 @@ TypeId Sema::resolve_type(const ast::TypeNode* node, Scope* scope) {
         }
         if (auto* ss = std::get_if<StructSymbol>(entry))
             return ss->type_id;
+        if (auto* as = std::get_if<TypeAliasSymbol>(entry))
+            return as->type;
         diag_.report({diag::Severity::Error, node->loc,
                       "'" + n->name + "' is not a type"});
         return kInvalidTypeId;
@@ -223,6 +225,8 @@ TypeId Sema::resolve_type(const ast::TypeNode* node, Scope* scope) {
         }
         if (auto* ss = std::get_if<StructSymbol>(ty_ent))
             return ss->type_id;
+        if (auto* as = std::get_if<TypeAliasSymbol>(ty_ent))
+            return as->type;
         diag_.report({diag::Severity::Error, node->loc,
                       "'" + n->ns + "::" + n->name + "' is not a type"});
         return kInvalidTypeId;
@@ -261,9 +265,16 @@ void Sema::collect_decl(ast::Decl* decl, Scope* scope) {
     case NodeKind::NamespaceDecl:
         collect_namespace_decl(ast_cast<NamespaceDecl>(decl), scope);
         break;
-    case NodeKind::TypeAliasDecl:
-        // отложено: псевдонимы пока не используются в проходе 1
+    case NodeKind::TypeAliasDecl: {
+        auto* ta = ast_cast<TypeAliasDecl>(decl);
+        TypeAliasSymbol sym;
+        sym.name = ta->name;
+        sym.type = ta->target ? resolve_type(ta->target.get(), scope) : kInvalidTypeId;
+        if (!scope->declare(ta->name, std::move(sym)))
+            diag_.report({diag::Severity::Error, ta->loc,
+                          "redeclaration of '" + ta->name + "'"});
         break;
+    }
     case NodeKind::VarDecl: {
         auto* vd = ast_cast<VarDecl>(decl);
         VarSymbol sym;

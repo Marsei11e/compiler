@@ -40,7 +40,7 @@ int32_t rt_strlen(rt_string s) {
 
 void rt_print_i64(int64_t x)    { printf("%lld", (long long)x); }
 void rt_print_u64(uint64_t x)   { printf("%llu", (unsigned long long)x); }
-void rt_print_f64(double x)     { printf("%g", x); }
+void rt_print_f64(double x)     { printf("%.6f", x); }
 void rt_print_bool(int32_t b)   { fputs(b ? "true" : "false", stdout); }
 void rt_print_string(rt_string s) {
     if (s.len > 0) fwrite(s.data, 1, (size_t)s.len, stdout);
