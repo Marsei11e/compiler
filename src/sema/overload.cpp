@@ -1,6 +1,7 @@
 /* реализация разрешения перегрузки - семантика §13.2 */
 module;
 
+#include <algorithm>
 #include <cassert>
 #include <string>
 #include <span>
@@ -39,22 +40,36 @@ OverloadSet filter_by_name(const OverloadSet& all, const std::string& name) {
     return result;
 }
 
-// возвращает {точное, применимо} для одной пары (арг, параметр)
-static std::pair<bool, bool> check_arg_compat(TypeId natural_ty, ArgKind kind,
-                                               TypeId param_ty,
-                                               const TypeInterner& ti) {
-    if (kind == ArgKind::Regular) {
-        bool exact = (natural_ty == param_ty);
-        return {exact, exact};
-    }
-    // несуффиксированный литерал — правила адаптации, никогда не точный
-    if (kind == ArgKind::UnsuffixedInt) {
-        bool adapt = ti.is_signed_int(param_ty) || ti.is_unsigned_int(param_ty);
-        return {false, adapt};
-    }
-    // несуффиксированный float
-    bool adapt = ti.is_float(param_ty);
-    return {false, adapt};
+// допустимо ли неявное расширяющее (value-preserving) приведение from -> to.
+// узких/лоссовых приведений нет - только в одну сторону, чтобы не плодить
+// двусторонние неоднозначности (A.3.1).
+static bool is_widening(TypeId from, TypeId to, const TypeInterner& ti) {
+    if (from == to) return false;
+    bool fs = ti.is_signed_int(from),   fu = ti.is_unsigned_int(from), ff = ti.is_float(from);
+    bool ts = ti.is_signed_int(to),     tu = ti.is_unsigned_int(to),   tf = ti.is_float(to);
+    if ((fs || fu) && tf) return true;                                  // целое -> вещественное
+    if (ff && tf) return ti.bit_width(to) > ti.bit_width(from);         // float32 -> float64
+    if (fs && ts) return ti.bit_width(to) > ti.bit_width(from);         // signed -> wider signed
+    if (fu && tu) return ti.bit_width(to) > ti.bit_width(from);         // unsigned -> wider unsigned
+    if (fu && ts) return ti.bit_width(to) > ti.bit_width(from);         // unsigned -> wider signed
+    return false;
+}
+
+// ранг совместимости одного аргумента с параметром: меньше = лучше, -1 = нет.
+//   0 — точное совпадение
+//   1 — подстройка безсуффиксного литерала (§13.2)
+//   2 — неявное расширяющее приведение (A.3.1)
+static int arg_rank(TypeId natural_ty, ArgKind kind, TypeId param_ty,
+                    const TypeInterner& ti) {
+    // безсуффиксный литерал — всегда подстройка, точным совпадением не считается
+    if (kind == ArgKind::UnsuffixedInt)
+        return (ti.is_signed_int(param_ty) || ti.is_unsigned_int(param_ty)) ? 1 : -1;
+    if (kind == ArgKind::UnsuffixedFloat)
+        return ti.is_float(param_ty) ? 1 : -1;
+    // обычный аргумент: точное совпадение либо неявное расширение
+    if (natural_ty == param_ty) return 0;
+    if (is_widening(natural_ty, param_ty, ti)) return 2;
+    return -1;
 }
 
 ResolveResult resolve_call(const OverloadSet&       candidates,
@@ -69,37 +84,37 @@ ResolveResult resolve_call(const OverloadSet&       candidates,
         if (t == kInvalidTypeId)
             return {nullptr, OverloadStatus::NoMatch};
 
-    struct Candidate { FnSymbol* fn; bool all_exact; };
+    // суммарная "цена" приведений кандидата: чем меньше, тем точнее вызов.
+    struct Candidate { FnSymbol* fn; int cost; };
     std::vector<Candidate> applicable;
 
     for (auto* fn : candidates.overloads) {
         if (fn->params.size() != nargs) continue;
 
-        bool ok        = true;
-        bool all_exact = true;
+        bool ok   = true;
+        int  cost = 0;
         for (size_t i = 0; i < nargs; ++i) {
-            auto [exact, fits] = check_arg_compat(arg_types[i], arg_kinds[i],
-                                                   fn->params[i].type, ti);
-            if (!fits) { ok = false; break; }
-            if (!exact) all_exact = false;
+            int r = arg_rank(arg_types[i], arg_kinds[i], fn->params[i].type, ti);
+            if (r < 0) { ok = false; break; }
+            cost += r;
         }
-        if (ok) applicable.push_back({fn, all_exact});
+        if (ok) applicable.push_back({fn, cost});
     }
 
     if (applicable.empty())
         return {nullptr, OverloadStatus::NoMatch};
 
-    if (applicable.size() == 1)
-        return {applicable[0].fn, OverloadStatus::Resolved};
+    // выбираем кандидата с минимальной ценой; если их несколько — ambiguous.
+    // exact(0) < подстройка литерала(1) < неявное расширение(2) (§13.2 шаг 7, A.3.1)
+    int best = applicable[0].cost;
+    for (auto& c : applicable) best = std::min(best, c.cost);
 
-    // несколько применимых: предпочитаем единственного all-exact кандидата (§13.2 шаг 7)
-    FnSymbol* winner     = nullptr;
-    int       exact_count = 0;
-    for (auto& c : applicable) {
-        if (c.all_exact) { ++exact_count; winner = c.fn; }
-    }
+    FnSymbol* winner    = nullptr;
+    int       win_count = 0;
+    for (auto& c : applicable)
+        if (c.cost == best) { ++win_count; winner = c.fn; }
 
-    if (exact_count == 1)
+    if (win_count == 1)
         return {winner, OverloadStatus::Resolved};
 
     return {nullptr, OverloadStatus::Ambiguous};

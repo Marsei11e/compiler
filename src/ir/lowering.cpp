@@ -1285,10 +1285,35 @@ private:
         return CastKind::Bitcast;
     }
 
+    // A.3.1: выбранная перегрузка может принимать параметр шире, чем естественный
+    // тип аргумента (неявное расширение). emit_raw_call печатает аргумент по его
+    // собственному типу, поэтому несоответствие нужно снять реальным cast'ом здесь,
+    // иначе llc отвергнет IR. param_types выровнены по args (для методов self - [0]).
+    void coerce_args(std::vector<Operand>& args,
+                     const std::vector<uint32_t>& param_types,
+                     diag::SourceLocation loc) {
+        for (size_t k = 0; k < args.size() && k < param_types.size(); ++k) {
+            TypeId want = tid(param_types[k]);
+            if (args[k].type == want) continue;
+            if (!is_numeric(args[k].type) || !is_numeric(want)) continue;
+            Operand res = new_temp(want);
+            Inst i;
+            i.op = Op::Cast;
+            i.type = want;
+            i.cast_kind = pick_cast_kind(args[k].type, want);
+            i.result = res;
+            i.args.push_back(args[k]);
+            i.loc = loc;
+            emit(std::move(i));
+            args[k] = res;
+        }
+    }
+
     Operand lower_call(CallExpr* ce) {
         std::vector<Operand> args;
         args.reserve(ce->args.size());
         for (auto& a : ce->args) args.push_back(lower_expr(a.get()));
+        coerce_args(args, ce->resolved_param_types, ce->loc);
 
         std::string callee;
         CallKind kind = CallKind::User;
@@ -1346,6 +1371,7 @@ private:
         Operand recv = lower_expr(mc->receiver.get());
         args.push_back(std::move(recv));
         for (auto& a : mc->args) args.push_back(lower_expr(a.get()));
+        coerce_args(args, mc->resolved_param_types, mc->loc);
 
         TypeId recv_ty = tid_of(mc->receiver.get());
         std::string callee =
