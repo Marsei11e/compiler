@@ -334,6 +334,7 @@ private:
         case TK::Float64: return TypeId{static_cast<uint32_t>(TypeKind::F64)};
         case TK::KwBool:  return TypeId{static_cast<uint32_t>(TypeKind::Bool)};
         case TK::KwString:return TypeId{static_cast<uint32_t>(TypeKind::String)};
+        case TK::KwChar:  return TypeId{static_cast<uint32_t>(TypeKind::Char)};
         case TK::Hollow:  return TypeId{static_cast<uint32_t>(TypeKind::Hollow)};
         default: return kInvalidTypeId;
         }
@@ -940,6 +941,7 @@ private:
         case NodeKind::BoolLit:   return const_bool(ast_cast<BoolLit>(e)->value,
                                                     tid_of(e));
         case NodeKind::StringLit: return lower_string_lit(ast_cast<StringLit>(e));
+        case NodeKind::CharLit:   return const_uint(ast_cast<CharLit>(e)->codepoint, tid_of(e));
         case NodeKind::IdentExpr: return lower_ident(ast_cast<IdentExpr>(e));
         case NodeKind::SelfExpr:  return lower_self(e);
 
@@ -1362,7 +1364,8 @@ private:
     static bool is_builtin_callee(const std::string& name) {
         return name == "print"   || name == "println" ||
                name == "input"   || name == "exit"    ||
-               name == "panic"   || name == "len";
+               name == "panic"   || name == "len"     ||
+               name == "code"    || name == "char_from";
     }
 
     Operand lower_method_call(MethodCallExpr* mc) {

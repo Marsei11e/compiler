@@ -45,12 +45,40 @@ void rt_print_bool(int32_t b)   { fputs(b ? "true" : "false", stdout); }
 void rt_print_string(rt_string s) {
     if (s.len > 0) fwrite(s.data, 1, (size_t)s.len, stdout);
 }
+void rt_print_char(uint32_t cp) {
+    // char - Unicode scalar value; печатаем как UTF-8
+    unsigned char buf[4];
+    int n;
+    if (cp < 0x80) {
+        buf[0] = (unsigned char)cp; n = 1;
+    } else if (cp < 0x800) {
+        buf[0] = (unsigned char)(0xC0 | (cp >> 6));
+        buf[1] = (unsigned char)(0x80 | (cp & 0x3F));
+        n = 2;
+    } else if (cp < 0x10000) {
+        buf[0] = (unsigned char)(0xE0 | (cp >> 12));
+        buf[1] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[2] = (unsigned char)(0x80 | (cp & 0x3F));
+        n = 3;
+    } else if (cp <= 0x10FFFF) {
+        buf[0] = (unsigned char)(0xF0 | (cp >> 18));
+        buf[1] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
+        buf[2] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[3] = (unsigned char)(0x80 | (cp & 0x3F));
+        n = 4;
+    } else {
+        // вне диапазона Unicode - печатаем U+FFFD REPLACEMENT CHARACTER
+        buf[0] = 0xEF; buf[1] = 0xBF; buf[2] = 0xBD; n = 3;
+    }
+    fwrite(buf, 1, (size_t)n, stdout);
+}
 
 void rt_println_i64(int64_t x)    { rt_print_i64(x);    putchar('\n'); }
 void rt_println_u64(uint64_t x)   { rt_print_u64(x);    putchar('\n'); }
 void rt_println_f64(double x)     { rt_print_f64(x);    putchar('\n'); }
 void rt_println_bool(int32_t b)   { rt_print_bool(b);   putchar('\n'); }
 void rt_println_string(rt_string s) { rt_print_string(s); putchar('\n'); }
+void rt_println_char(uint32_t cp) { rt_print_char(cp);   putchar('\n'); }
 void rt_println_empty(void)       { putchar('\n'); }
 
 rt_string rt_input(void) {

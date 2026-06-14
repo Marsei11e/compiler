@@ -20,12 +20,14 @@ void rt_print_u64(uint64_t x);
 void rt_print_f64(double x);
 void rt_print_bool(int32_t b);
 void rt_print_string(rt_string s);
+void rt_print_char(uint32_t cp);
 
 void rt_println_i64(int64_t x);
 void rt_println_u64(uint64_t x);
 void rt_println_f64(double x);
 void rt_println_bool(int32_t b);
 void rt_println_string(rt_string s);
+void rt_println_char(uint32_t cp);
 void rt_println_empty(void);
 
 rt_string rt_input(void);

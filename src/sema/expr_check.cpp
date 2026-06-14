@@ -29,6 +29,7 @@ static constexpr TypeId kI32Ty    {static_cast<uint32_t>(TypeKind::I32)};
 static constexpr TypeId kF32Ty    {static_cast<uint32_t>(TypeKind::F32)};
 static constexpr TypeId kF64Ty    {static_cast<uint32_t>(TypeKind::F64)};
 static constexpr TypeId kStringTy {static_cast<uint32_t>(TypeKind::String)};
+static constexpr TypeId kCharTy   {static_cast<uint32_t>(TypeKind::Char)};
 
 // допустимые касты по types.md §7
 
@@ -177,6 +178,10 @@ TypeId Sema::check_expr(ast::Expr* expr, TypeId expected, Scope* scope) {
 
     case NodeKind::StringLit:
         ty = kStringTy;
+        break;
+
+    case NodeKind::CharLit:
+        ty = kCharTy;
         break;
 
     // идентификаторы
@@ -729,11 +734,12 @@ TypeId Sema::check_binary_expr(ast::BinaryExpr* be, TypeId expected, Scope* scop
             return kInvalidTypeId;
         }
 
-        // eq/ne допустимы для: numeric, bool, string
+        // eq/ne допустимы для: numeric, bool, string, char
         if (be->op == BO::Eq || be->op == BO::Ne) {
-            if (!types_.is_numeric(lt) && lt != kBoolTy && lt != kStringTy) {
+            if (!types_.is_numeric(lt) && lt != kBoolTy &&
+                lt != kStringTy && lt != kCharTy) {
                 diag_.report({diag::Severity::Error, be->loc,
-                              "operator '==' requires numeric, bool, or string operands"});
+                              "operator '==' requires numeric, bool, string, or char operands"});
                 return kInvalidTypeId;
             }
         } else {

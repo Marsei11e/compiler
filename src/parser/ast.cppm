@@ -45,7 +45,7 @@ enum class NodeKind {
     DeferStmt, BlockStmt, EmptyStmt,
 
     // выражения
-    IntLit, FloatLit, BoolLit, StringLit,
+    IntLit, FloatLit, BoolLit, StringLit, CharLit,
     ArrayLit, StructLit,
     IdentExpr, SelfExpr,
     NamespaceAccess, FieldAccess,
@@ -299,6 +299,12 @@ struct BoolLit : Expr {
     bool value;
     BoolLit(diag::SourceLocation l, bool v)
         : Expr(NodeKind::BoolLit, l), value(v) {}
+};
+
+struct CharLit : Expr {
+    uint32_t codepoint;
+    CharLit(diag::SourceLocation l, uint32_t cp)
+        : Expr(NodeKind::CharLit, l), codepoint(cp) {}
 };
 
 struct StringLit : Expr {

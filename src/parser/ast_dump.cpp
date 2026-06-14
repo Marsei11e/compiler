@@ -282,6 +282,9 @@ void AstDumper::dump_expr(const Expr& e) {
     case NodeKind::StringLit:
         indent(); out_ << "StringLit \"" << static_cast<const StringLit&>(e).value << "\"\n";
         break;
+    case NodeKind::CharLit:
+        indent(); out_ << "CharLit " << static_cast<const CharLit&>(e).codepoint << "\n";
+        break;
     case NodeKind::IdentExpr:
         indent(); out_ << "Ident " << static_cast<const IdentExpr&>(e).name << "\n";
         break;

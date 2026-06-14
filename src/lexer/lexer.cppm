@@ -18,6 +18,7 @@ enum class TokenKind {
     IntLit,
     FloatLit,
     StringLit,
+    CharLit,
 
     // ключевые слова
     Fn, Var, Const, Return,
@@ -41,6 +42,7 @@ enum class TokenKind {
     Float32, Float64,
     KwBool, // 'bool' (чтобы не пересекаться с C++ bool)
     KwString, // 'string'
+    KwChar, // 'char'
 
     // идентификатор
     Ident,
@@ -106,8 +108,13 @@ struct FloatLiteralData {
     bool is_f32{false}; // true если есть суффикс 'f' - это float32
 };
 
+struct CharLiteralData {
+    uint32_t codepoint{0}; // Unicode scalar value (char у нас - 32-битный кодпойнт)
+};
+
 // хранит декодированное значение, для нелитеральных токенов - monostate
-using TokenLiteral = std::variant<std::monostate, IntLiteralData, FloatLiteralData, std::string>;
+using TokenLiteral = std::variant<std::monostate, IntLiteralData, FloatLiteralData,
+                                  CharLiteralData, std::string>;
 
 // токен
 
@@ -150,6 +157,7 @@ private:
     Token lex_one();
     Token lex_number(std::size_t start, diag::SourceLocation start_loc);
     Token lex_string(std::size_t start, diag::SourceLocation start_loc);
+    Token lex_char(std::size_t start, diag::SourceLocation start_loc);
     Token lex_ident_or_kw(std::size_t start, diag::SourceLocation start_loc);
     Token lex_effect_attr(std::size_t start, diag::SourceLocation start_loc);
     void  skip_line_comment();

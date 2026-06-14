@@ -60,6 +60,10 @@ bool is_string_ty(const TypeInterner& ti, TypeId t) {
     return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::String;
 }
 
+bool is_char_ty(const TypeInterner& ti, TypeId t) {
+    return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::Char;
+}
+
 bool is_struct_ty(const TypeInterner& ti, TypeId t) {
     return t != sema::kInvalidTypeId && ti.get(t).kind == TypeKind::Struct;
 }
@@ -838,6 +842,12 @@ private:
                   << operand_value(I.args[0]) << ")\n";
             return false;
         }
+        if (I.callee == "code" || I.callee == "char_from") {
+            // char и int32 имеют одинаковое представление (i32); конверсия - no-op
+            body_ << "    " << operand_value(I.result)
+                  << " = add i32 " << operand_value(I.args[0]) << ", 0\n";
+            return false;
+        }
         body_ << "    ; unsupported: builtin '" << I.callee << "'\n";
         return false;
     }
@@ -906,6 +916,12 @@ private:
             std::string sym = prefix + std::string("string");
             emit_rt_decl(sym, "void", {"%string"});
             body_ << "    call void @" << sym << "(%string " << val << ")\n";
+            return;
+        }
+        if (is_char_ty(*ti_, at)) {
+            std::string sym = prefix + std::string("char");
+            emit_rt_decl(sym, "void", {"i32"});
+            body_ << "    call void @" << sym << "(i32 " << val << ")\n";
             return;
         }
         body_ << "    ; unsupported: "

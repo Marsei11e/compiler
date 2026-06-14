@@ -27,7 +27,7 @@ enum class TypeKind : uint8_t {
     I8, I16, I32, I64,
     U8, U16, U32, U64,
     F32, F64,
-    Bool, String, Hollow,
+    Bool, String, Hollow, Char,
     Array, Range, Struct,
 };
 
@@ -61,7 +61,7 @@ public:
             TypeKind::I8,  TypeKind::I16,  TypeKind::I32,    TypeKind::I64,
             TypeKind::U8,  TypeKind::U16,  TypeKind::U32,    TypeKind::U64,
             TypeKind::F32, TypeKind::F64,
-            TypeKind::Bool, TypeKind::String, TypeKind::Hollow,
+            TypeKind::Bool, TypeKind::String, TypeKind::Hollow, TypeKind::Char,
         };
         for (auto k : kBuiltins) {
             detail::TypeData d;
@@ -140,6 +140,10 @@ public:
         return is_signed_int(id) || is_unsigned_int(id) || is_float(id);
     }
 
+    bool is_char(TypeId id) const {
+        return get(id).kind == TypeKind::Char;
+    }
+
     uint32_t bit_width(TypeId id) const {
         switch (get(id).kind) {
             case TypeKind::I8:  case TypeKind::U8:  return 8;
@@ -149,6 +153,7 @@ public:
             case TypeKind::F32: return 32;
             case TypeKind::F64: return 64;
             case TypeKind::Bool: return 1;
+            case TypeKind::Char: return 32;
             default: return 0;
         }
     }
@@ -184,6 +189,7 @@ private:
             case TypeKind::Bool:   return "bool";
             case TypeKind::String: return "string";
             case TypeKind::Hollow: return "hollow";
+            case TypeKind::Char:   return "char";
             default:               return "?";
         }
     }

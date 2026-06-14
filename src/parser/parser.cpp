@@ -345,6 +345,7 @@ TypePtr Parser::parse_type() {
     case TokenKind::Float64: advance(); return std::make_unique<BuiltinTypeRef>(loc, TokenKind::Float64);
     case TokenKind::KwBool:  advance(); return std::make_unique<BuiltinTypeRef>(loc, TokenKind::KwBool);
     case TokenKind::KwString:advance(); return std::make_unique<BuiltinTypeRef>(loc, TokenKind::KwString);
+    case TokenKind::KwChar:  advance(); return std::make_unique<BuiltinTypeRef>(loc, TokenKind::KwChar);
     case TokenKind::Hollow:  advance(); return std::make_unique<BuiltinTypeRef>(loc, TokenKind::Hollow);
 
     case TokenKind::Array: {
@@ -567,6 +568,13 @@ ExprPtr Parser::parse_primary_expr() {
         auto val = std::get<std::string>(peek().value);
         advance();
         return std::make_unique<StringLit>(loc, std::move(val));
+    }
+
+    // символьный литерал
+    case TokenKind::CharLit: {
+        auto cp = std::get<lex::CharLiteralData>(peek().value).codepoint;
+        advance();
+        return std::make_unique<CharLit>(loc, cp);
     }
 
     // self

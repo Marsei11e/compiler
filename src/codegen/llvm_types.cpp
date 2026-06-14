@@ -20,6 +20,7 @@ std::string lower_type(sema::TypeId id, const sema::TypeInterner& types,
         case sema::TypeKind::F32: return "float";
         case sema::TypeKind::F64: return "double";
         case sema::TypeKind::Bool: return storage ? "i8" : "i1";
+        case sema::TypeKind::Char: return "i32"; // 32-битный Unicode-кодпойнт
         case sema::TypeKind::Hollow: return "void";
         case sema::TypeKind::String: return "%string";
         case sema::TypeKind::Array:

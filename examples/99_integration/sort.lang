@@ -1,0 +1,36 @@
+fn bubble_sort(a: array[int32, 6]) -> array[int32, 6] {
+    var r: array[int32, 6] = a;
+    for i in 0..6 {
+        for j in 0..5 {
+            if r[j] > r[j + 1] {
+                var tmp: int32 = r[j];
+                r[j] = r[j + 1];
+                r[j + 1] = tmp;
+            }
+        }
+    }
+    return r;
+}
+
+fn print_all(a: array[int32, 6]) -> hollow {
+    for x in a {
+        println(x);
+    }
+}
+
+fn main() -> int32 {
+    var data: array[int32, 6] = [5, 2, 9, 1, 7, 3];
+
+    println("before:");
+    print_all(data);
+
+    var sorted: array[int32, 6] = bubble_sort(data);
+
+    println("after:");
+    print_all(sorted);
+
+    -- value semantics: исходный массив не изменился сортировкой
+    print("original first: ");
+    println(data[0]);
+    return 0;
+}

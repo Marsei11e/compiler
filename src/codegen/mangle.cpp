@@ -34,6 +34,7 @@ std::string type_code(sema::TypeId id, const sema::TypeInterner& types) {
         case sema::TypeKind::F64: return "d";
         case sema::TypeKind::Bool:   return "b";
         case sema::TypeKind::String: return "S";
+        case sema::TypeKind::Char:   return "x";
         case sema::TypeKind::Hollow: return "v";  // среди параметров не встречается
         case sema::TypeKind::Array:
             return "A" + std::to_string(td.array_size) + "_"

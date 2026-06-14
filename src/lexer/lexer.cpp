@@ -58,6 +58,7 @@ static const std::unordered_map<std::string_view, TokenKind>& keyword_table() {
         {"float64",   TokenKind::Float64},
         {"bool",      TokenKind::KwBool},
         {"string",    TokenKind::KwString},
+        {"char",      TokenKind::KwChar},
     };
     return kw;
 }
@@ -69,6 +70,7 @@ std::string_view token_kind_name(TokenKind k) {
     case TokenKind::IntLit:      return "int_lit";
     case TokenKind::FloatLit:    return "float_lit";
     case TokenKind::StringLit:   return "string_lit";
+    case TokenKind::CharLit:     return "char_lit";
     case TokenKind::Fn:          return "fn";
     case TokenKind::Var:         return "var";
     case TokenKind::Const:       return "const";
@@ -104,6 +106,7 @@ std::string_view token_kind_name(TokenKind k) {
     case TokenKind::Float64:     return "float64";
     case TokenKind::KwBool:      return "bool";
     case TokenKind::KwString:    return "string";
+    case TokenKind::KwChar:      return "char";
     case TokenKind::Ident:       return "ident";
     case TokenKind::AtPure:      return "@pure";
     case TokenKind::AtIo:        return "@io";
@@ -332,6 +335,73 @@ Token Lexer::lex_string(std::size_t start, diag::SourceLocation start_loc) {
     return make_tok(TokenKind::StringLit, start_loc, start, pos_, std::move(decoded));
 }
 
+// лексинг символьного литерала: char - 32-битный Unicode-кодпойнт.
+// внутри ' ' допускается ровно один символ (ASCII, escape или один UTF-8 кодпойнт).
+
+Token Lexer::lex_char(std::size_t start, diag::SourceLocation start_loc) {
+    // открывающая ' уже съедена
+    if (at_end() || peek() == '\n') {
+        error(start_loc, "unterminated char literal");
+        return make_tok(TokenKind::Error, start_loc, start, pos_);
+    }
+
+    uint32_t codepoint = 0;
+    char c = advance();
+
+    if (c == '\'') {
+        error(start_loc, "empty char literal");
+        return make_tok(TokenKind::Error, start_loc, start, pos_);
+    }
+
+    if (c == '\\') {
+        if (at_end()) {
+            error(current_loc(), "unterminated escape sequence");
+            return make_tok(TokenKind::Error, start_loc, start, pos_);
+        }
+        char esc = advance();
+        switch (esc) {
+        case '\'': codepoint = '\''; break;
+        case '"':  codepoint = '"';  break;
+        case '\\': codepoint = '\\'; break;
+        case 'n':  codepoint = '\n'; break;
+        case 't':  codepoint = '\t'; break;
+        case 'r':  codepoint = '\r'; break;
+        case '0':  codepoint = '\0'; break;
+        default:
+            error(current_loc(),
+                  std::string("unknown escape sequence '\\") + esc + "'");
+            return make_tok(TokenKind::Error, start_loc, start, pos_);
+        }
+    } else {
+        // декодируем один UTF-8 кодпойнт (ASCII -> сам байт)
+        unsigned char b0 = static_cast<unsigned char>(c);
+        int extra = 0;
+        if (b0 < 0x80)        { codepoint = b0; }
+        else if ((b0 >> 5) == 0x06) { codepoint = b0 & 0x1F; extra = 1; }
+        else if ((b0 >> 4) == 0x0E) { codepoint = b0 & 0x0F; extra = 2; }
+        else if ((b0 >> 3) == 0x1E) { codepoint = b0 & 0x07; extra = 3; }
+        else {
+            error(start_loc, "invalid UTF-8 byte in char literal");
+            return make_tok(TokenKind::Error, start_loc, start, pos_);
+        }
+        for (int i = 0; i < extra; ++i) {
+            if (at_end() || (static_cast<unsigned char>(peek()) >> 6) != 0x02) {
+                error(start_loc, "malformed UTF-8 sequence in char literal");
+                return make_tok(TokenKind::Error, start_loc, start, pos_);
+            }
+            codepoint = (codepoint << 6) | (static_cast<unsigned char>(advance()) & 0x3F);
+        }
+    }
+
+    if (at_end() || advance() != '\'') {
+        error(start_loc, "char literal must contain exactly one character");
+        return make_tok(TokenKind::Error, start_loc, start, pos_);
+    }
+
+    return make_tok(TokenKind::CharLit, start_loc, start, pos_,
+                    CharLiteralData{codepoint});
+}
+
 // идентификатор или ключевое слово
 
 Token Lexer::lex_ident_or_kw(std::size_t start, diag::SourceLocation start_loc) {
@@ -447,6 +517,9 @@ Token Lexer::lex_one() {
 
     // строка
     case '"': return lex_string(start, loc);
+
+    // символьный литерал
+    case '\'': return lex_char(start, loc);
 
     // число
     default:

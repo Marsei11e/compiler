@@ -1,0 +1,61 @@
+-- expect_stdout:
+-- sum=27
+-- max=9
+-- fib(10)=55
+-- value
+-- hi
+-- 5!=120
+-- expect_exit: 0
+
+struct Acc { sum: int32, max: int32 }
+
+impl Acc {
+    fn empty() -> Acc @pure {
+        return Acc{ sum: 0, max: 0 };
+    }
+
+    fn add(self: Acc, x: int32) -> Acc @pure {
+        return Acc{
+            sum: self.sum + x,
+            max: if x > self.max { x } else { self.max }   -- if-выражение в литерале
+        };
+    }
+}
+
+fn fib(n: int32) -> int32 {
+    if n < 2 { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn label(x: int32) -> string @pure { return "value"; }
+fn label(s: string) -> string @pure { return s; }
+
+fn main() -> int32 {
+    const data: array[int32, 6] = [5, 2, 9, 1, 7, 3];
+
+    -- свёртка массива через @pure-метод, возвращающий новую копию Acc
+    var acc: Acc = Acc::empty();
+    for x in data {
+        acc = acc.add(x);
+    }
+    print("sum="); println(acc.sum);     -- 27
+    print("max="); println(acc.max);     -- 9
+
+    -- рекурсия
+    print("fib(10)="); println(fib(10)); -- 55
+
+    -- перегрузка по типу аргумента
+    println(label(42));                  -- value
+    println(label("hi"));                -- hi
+
+    -- while + break: факториал 5
+    var i: int32 = 0;
+    var product: int32 = 1;
+    while true {
+        i = i + 1;
+        product = product * i;
+        if i >= 5 { break; }
+    }
+    print("5!="); println(product);      -- 120
+    return 0;
+}

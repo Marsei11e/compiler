@@ -36,6 +36,7 @@ static TypeKind token_to_typekind(lex::TokenKind k) {
     case lex::TokenKind::Float64:  return TypeKind::F64;
     case lex::TokenKind::KwBool:   return TypeKind::Bool;
     case lex::TokenKind::KwString: return TypeKind::String;
+    case lex::TokenKind::KwChar:   return TypeKind::Char;
     case lex::TokenKind::Hollow:   return TypeKind::Hollow;
     default:
         assert(false && "unexpected builtin type token");
@@ -157,12 +158,13 @@ void Sema::init_builtins() {
     TypeId kF64{static_cast<uint32_t>(TypeKind::F64)};
     TypeId kBol{static_cast<uint32_t>(TypeKind::Bool)};
     TypeId kStr{static_cast<uint32_t>(TypeKind::String)};
+    TypeId kChr{static_cast<uint32_t>(TypeKind::Char)};
 
     using EK = ast::EffectKind;
 
     // print(T) -> hollow @io и println(T) -> hollow @io для всех печатаемых T
     for (TypeId pt : {kI8, kI16, kI32, kI64, kU8, kU16, kU32, kU64,
-                       kF32, kF64, kBol, kStr}) {
+                       kF32, kF64, kBol, kStr, kChr}) {
         reg("print",   kHol, {pt}, {EK::Io});
         reg("println", kHol, {pt}, {EK::Io});
     }
@@ -172,6 +174,10 @@ void Sema::init_builtins() {
     reg("exit",  kHol, {kI32},{EK::Panics});   // exit(int32) -> hollow @panics
     reg("panic", kHol, {kStr},{EK::Panics});   // panic(string) -> hollow @panics
     reg("len",   kI32, {kStr},{EK::Pure});     // len(string) -> int32 @pure
+
+    // символы не арифметические: код<->символ выражаются функциями (types §char)
+    reg("code",      kI32, {kChr}, {EK::Pure}); // code(char) -> int32 @pure
+    reg("char_from", kChr, {kI32}, {EK::Pure}); // char_from(int32) -> char @pure
 }
 
 bool Sema::analyze_pass1(ast::Program& prog) {
